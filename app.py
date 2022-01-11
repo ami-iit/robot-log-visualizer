@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QApplication
 from file_reader.signal_provider import SignalProvider
 
 # Meshcat
-from idyntree.visualize import MeshcatVisualizer
+from robot_visualizer.meshcat_visualizer import MeshcatVisualizer
 
 
 def get_model_path(robot_name='iCubGazeboV3'):

@@ -33,9 +33,10 @@ def get_joint_list():
 if __name__ == '__main__':
     # instantiate device_manager
     meshcat = MeshcatVisualizer()
-    meshcat.set_model_from_file(get_model_path(), get_joint_list())
-    meshcat.load_model(color=[1, 1, 1, 0.8])
-
+    meshcat.load_model_from_file(model_path=get_model_path(),
+                                 considered_joints=get_joint_list(),
+                                 model_name='robot',
+                                 color=[1, 1, 1, 0.8])
     signal_provider = SignalProvider(meshcat)
 
     # instantiate a QApplication

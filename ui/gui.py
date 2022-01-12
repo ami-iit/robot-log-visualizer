@@ -99,7 +99,7 @@ class Logger:
     """
     Logger class shows events during the execution of the viewer.
     """
-    
+
     def __init__(self, log_widget, scroll_area):
 
         # set log widget from main window
@@ -122,7 +122,7 @@ class Logger:
         # compose new text
         # convert local time to string
         time_str = strftime(" [%H:%M:%S] ", localtime())
-        # 
+        #
         new_text = current_text + time_str + text + "\n"
 
         # log into the widget
@@ -153,5 +153,5 @@ if __name__ == '__main__':
 
     # show the main window
     gui.show()
-    
+
     sys.exit(app.exec_())

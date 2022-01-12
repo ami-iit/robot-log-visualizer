@@ -23,10 +23,10 @@ class MeshcatVisualizer:
 
     def __init__(self, zmq_url=None):
         import meshcat
-        
+
         if zmq_url is not None:
             print("Connecting to meshcat-server at zmq_url=" + zmq_url + ".")
-          
+
         self.viewer = meshcat.Visualizer(zmq_url=zmq_url)
         self.traversal = dict()
         self.model = dict()

@@ -50,6 +50,3 @@ if __name__ == '__main__':
     signal_provider.start()
 
     sys.exit(app.exec_())
-
-
-    

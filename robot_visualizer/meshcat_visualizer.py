@@ -31,8 +31,10 @@ class MeshcatVisualizer:
         self.traversal = dict()
         self.model = dict()
         self.link_pos = dict()
+        self.primitive_geometries_names = []
 
-    def __is_mesh(self, geometry_object) -> bool:
+    @staticmethod
+    def __is_mesh(geometry_object: idyn.SolidShape) -> bool:
 
         if not geometry_object.isExternalMesh():
             return False
@@ -48,8 +50,8 @@ class MeshcatVisualizer:
 
         return False
 
-    def __load_mesh(self, geometry_object):
-
+    @staticmethod
+    def __load_mesh(geometry_object: idyn.SolidShape):
         import meshcat
 
         mesh_path = geometry_object.asExternalMesh().getFileLocationOnLocalFileSystem()
@@ -78,6 +80,33 @@ class MeshcatVisualizer:
 
         return obj
 
+    @staticmethod
+    def __load_primitive_geometry(geometry_object: idyn.SolidShape):
+        import meshcat
+
+        # Cylinders need to be rotated
+        R = np.array([[1., 0., 0., 0.],
+                      [0., 0., -1., 0.],
+                      [0., 1., 0., 0.],
+                      [0., 0., 0., 1.]])
+        RotatedCylinder = type("RotatedCylinder", (meshcat.geometry.Cylinder,), {"intrinsic_transform": lambda self: R})
+
+        if geometry_object.isCylinder():
+            obj = RotatedCylinder(geometry_object.asCylinder().getLength(),
+                                  geometry_object.asCylinder().getRadius())
+        elif geometry_object.isBox():
+            obj = meshcat.geometry.Box((geometry_object.asBox().getX(),
+                                        geometry_object.asBox().getY(),
+                                        geometry_object.asBox().getZ()))
+        elif geometry_object.isSphere():
+            obj = meshcat.geometry.Sphere(geometry_object.asSphere().getRadius())
+        else:
+            msg = "Unsupported geometry type (%s)" % type(geometry_object)
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            obj = None
+
+        return obj
+
     def __apply_transform(self, world_H_frame, solid_shape, viewer_name):
         world_H_geometry = (world_H_frame * solid_shape.getLink_H_geometry()).asHomogeneousTransform().toNumPy()
         scale = list(solid_shape.asExternalMesh().getScale().toNumPy().flatten())
@@ -88,24 +117,19 @@ class MeshcatVisualizer:
         self.viewer[viewer_name].set_transform(world_H_geometry_scaled)
 
     def __model_exists(self, model_name):
+        return model_name in self.model.keys() or \
+               model_name in self.traversal.keys() or \
+               model_name in self.link_pos.keys()
 
-        if model_name in self.model.keys():
-            return True
+    def __primitive_geometry_exists(self, geometry_name: str):
+        return geometry_name in self.primitive_geometries_names
 
-        if model_name in self.traversal.keys():
-            return True
-
-        if model_name in self.link_pos.keys():
-            return True
-
-        return False
-
-    def __add_model_geometry_to_viewer(self, model, model_geometry: idyn.ModelSolidShapes,
-                                       model_name, color):
+    def __add_model_geometry_to_viewer(self, model_geometry: idyn.ModelSolidShapes,
+                                       model_name: str, color: list):
         import meshcat
 
         if not self.__model_exists(model_name):
-            msg = "The model named: " +  model_name + " does not exist."
+            msg = "The model named: " + model_name + " does not exist."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
 
@@ -130,12 +154,7 @@ class MeshcatVisualizer:
                     obj = self.__load_mesh(solid_shape)
                     is_mesh = True
                 else:
-
-                    msg = "The geometry object named \"" \
-                          + solid_shape.getName() \
-                          + "\" is not supported by iDynTree/MeshCat for visualization."
-                    warnings.warn(msg, category=UserWarning, stacklevel=2)
-                    continue
+                    obj = self.__load_primitive_geometry(solid_shape)
 
                 if obj is None:
                     msg = "The geometry object named " + solid_shape.asExternalMesh().getName() + " is not valid."
@@ -168,11 +187,11 @@ class MeshcatVisualizer:
                     if is_mesh:
                         self.__apply_transform(world_H_frame, solid_shape, viewer_name)
 
-    def display(self, base_position, base_rotation, joint_value, model_name='iDynTree'):
+    def set_multy_body_system_state(self, base_position, base_rotation, joint_value, model_name='iDynTree'):
         """Display the robot at given configuration."""
 
         if not self.__model_exists(model_name):
-            msg = "The model named: " +  model_name + " does not exist."
+            msg = "The multy body system named: " + model_name + " does not exist."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
 
@@ -220,17 +239,62 @@ class MeshcatVisualizer:
     def jupyter_cell(self):
         return self.viewer.jupyter_cell()
 
-    def set_model_from_file(self, model_path: str, considered_joints=None, model_name='iDynTree'):
+    def load_primitive_geometry(self, solid_shape, shape_name='iDynTree', color=None):
+        import meshcat
 
-        if self.__model_exists(model_name):
-            msg = "The model named: " +  model_name + " already exists."
+        # check if the model already exist
+        if self.__primitive_geometry_exists(shape_name) or self.__model_exists(shape_name):
+            msg = "The model named: " + shape_name + " already exists."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
 
+        # try to load the primitive
+        obj = self.__load_primitive_geometry(solid_shape)
+
+        if obj is None:
+            msg = "The geometry object named " + shape_name + " is not valid."
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            return
+
+        viewer_name = shape_name
+
+        if isinstance(obj, meshcat.geometry.Object):
+            self.viewer[viewer_name].set_object(obj)
+        elif isinstance(obj, meshcat.geometry.Geometry):
+            material = meshcat.geometry.MeshPhongMaterial()
+            # Set material color from URDF, converting for triplet of doubles to a single int.
+            if color is None:
+                mesh_color = solid_shape.getMaterial().color()
+            else:
+                mesh_color = color
+
+            material.color = int(mesh_color[0] * 255) * 256 ** 2 + \
+                             int(mesh_color[1] * 255) * 256 + \
+                             int(mesh_color[2] * 255)
+
+            # Add transparency, if needed.
+            if float(mesh_color[3]) != 1.0:
+                material.transparent = True
+                material.opacity = float(mesh_color[3])
+
+            self.viewer[viewer_name].set_object(obj, material)
+            self.primitive_geometries_names.append(viewer_name)
+
+    def set_primitive_geometry_transform(self, position, rotation, shape_name='iDynTree'):
+        if self.__primitive_geometry_exists(shape_name):
+            transform = np.zeros((4, 4))
+            transform[0:3, 0:3] = rotation
+            transform[0:3, 3] = position
+            transform[3, 3] = 1
+            self.viewer[shape_name].set_transform(transform)
+
+    def load_model_from_file(self, model_path: str, considered_joints=None,
+                             model_name='iDynTree', color=None):
 
         model_loader = idyn.ModelLoader()
         if considered_joints is None:
             ok = model_loader.loadModelFromFile(model_path)
+
         else:
             considered_joints_idyn = idyn.StringVector()
             for joint in considered_joints:
@@ -243,15 +307,13 @@ class MeshcatVisualizer:
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
 
-        self.model[model_name] = model_loader.model().copy()
-        self.traversal[model_name] = idyn.Traversal()
-        self.link_pos[model_name] = idyn.LinkPositions()
+        self.load_model(model=model_loader.model(),
+                        model_name=model_name,
+                        color=color)
 
-        self.model[model_name].computeFullTreeTraversal(self.traversal[model_name])
-        self.link_pos[model_name].resize(self.model[model_name])
+    def load_model(self, model: idyn.Model, model_name='iDynTree', color=None):
 
-    def set_model(self, model: idyn.Model, model_name='iDynTree'):
-
+        # check if the model already exist
         if self.__model_exists(model_name):
             msg = "The model named: " + model_name + " already exists."
             warnings.warn(msg, category=UserWarning, stacklevel=2)
@@ -264,8 +326,24 @@ class MeshcatVisualizer:
         self.model[model_name].computeFullTreeTraversal(self.traversal[model_name])
         self.link_pos[model_name].resize(self.model[model_name])
 
-    def load_model(self, model_name='iDynTree', color=None):
-        self.__add_model_geometry_to_viewer(self.model,
-                                            self.model[model_name].visualSolidShapes(),
-                                            model_name,
-                                            color)
+        self.__add_model_geometry_to_viewer(model_geometry=self.model[model_name].visualSolidShapes(),
+                                            model_name=model_name,
+                                            color=color)
+
+    def load_sphere(self, radius, shape_name='iDynTree', color=None):
+        sphere = idyn.Sphere()
+        sphere.setRadius(radius)
+        self.load_primitive_geometry(solid_shape=sphere, shape_name=shape_name, color=color)
+
+    def load_cylinder(self, radius, length, shape_name='iDynTree', color=None):
+        cylinder = idyn.Cylinder()
+        cylinder.setRadius(radius)
+        cylinder.setLength(length)
+        self.load_primitive_geometry(solid_shape=cylinder, shape_name=shape_name, color=color)
+
+    def load_box(self, x, y, z, shape_name='iDynTree', color=None):
+        box = idyn.Box()
+        box.setX(x)
+        box.setY(y)
+        box.setZ(z)
+        self.load_primitive_geometry(solid_shape=box, shape_name=shape_name, color=color)

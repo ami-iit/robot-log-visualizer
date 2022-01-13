@@ -143,6 +143,7 @@
            <property name="title">
             <string>Plot</string>
            </property>
+           <layout class="QGridLayout" name="plotBoxLayout"/>
           </widget>
           <widget class="QWebEngineView" name="meshcatView" native="true">
            <property name="sizePolicy">

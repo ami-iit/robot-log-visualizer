@@ -1,8 +1,8 @@
-#PyQt5
+# PyQt5
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QUrl
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem
 
 import sys
 
@@ -12,6 +12,7 @@ from ui.about import Ui_aboutWindow
 
 # for logging
 from time import localtime, strftime
+
 
 class About(QtWidgets.QMainWindow):
     def __init__(self):
@@ -25,6 +26,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     """
     Main window class of EVB1000 Viewer
     """
+
     def __init__(self, meshcat: str, signal_provider):
         # call QMainWindow constructor
         super().__init__()
@@ -34,7 +36,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
 
         self.about = About()
-
 
         self.signal_provider = signal_provider
         self.signal_size = len(self.signal_provider)
@@ -56,7 +57,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.clicked.connect(self.startButton_on_click)
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
-
 
     def timeSlider_on_pressed(self):
         self.slider_pressed = True
@@ -97,17 +97,35 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # close the window
         self.close()
 
+    def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
+        if not isinstance(obj, dict):
+            return parent
+        for key, value in obj.items():
+            item = QTreeWidgetItem([key])
+            item = self.__populate_variable_tree_widget(value, item)
+            parent.addChild(item)
+        return parent
+
     def open_mat_file(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open a mat file", ".", filter='*.mat')
-        self.signal_provider.open_mat_file(file_name)
-        self.ui.startButton.setEnabled(True)
-        self.ui.timeSlider.setEnabled(True)
-        self.ui.timeLabel.setEnabled(True)
-        self.signal_size = len(self.signal_provider)
-        self.logger.write_to_log("File '" + file_name + "' opened.")
+        if file_name:
+            self.signal_provider.open_mat_file(file_name)
+            self.ui.startButton.setEnabled(True)
+            self.ui.timeSlider.setEnabled(True)
+            self.ui.timeLabel.setEnabled(True)
+            self.signal_size = len(self.signal_provider)
+
+            # populate tree
+            root = list(self.signal_provider.data.keys())[0]
+            items = self.__populate_variable_tree_widget(self.signal_provider.data[root], QTreeWidgetItem([root]))
+            self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+            # write something in the log
+            self.logger.write_to_log("File '" + file_name + "' opened.")
 
     def open_about(self):
         self.about.show()
+
 
 class Logger:
     """
@@ -115,7 +133,6 @@ class Logger:
     """
 
     def __init__(self, log_widget, scroll_area):
-
         # set log widget from main window
         self.log_widget = log_widget
 

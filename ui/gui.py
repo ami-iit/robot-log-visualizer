@@ -8,9 +8,17 @@ import sys
 
 # QtDesigner generated classes
 from ui.visualizer import Ui_MainWindow
+from ui.about import Ui_aboutWindow
 
 # for logging
 from time import localtime, strftime
+
+class About(QtWidgets.QMainWindow):
+    def __init__(self):
+        # call QMainWindow constructor
+        super().__init__()
+        self.ui = Ui_aboutWindow()
+        self.ui.setupUi(self)
 
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
@@ -25,6 +33,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        self.about = About()
+
+
         self.signal_provider = signal_provider
         self.signal_size = len(self.signal_provider)
         self.signal_provider.register_update_index(self.update_slider)
@@ -37,6 +48,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # connect action
         self.ui.actionQuit.triggered.connect(self.quit)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
+        self.ui.actionAbout.triggered.connect(self.open_about)
 
         self.ui.meshcatView.setUrl(QUrl(meshcat.viewer.url()))
 
@@ -44,6 +56,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.clicked.connect(self.startButton_on_click)
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
+
 
     def timeSlider_on_pressed(self):
         self.slider_pressed = True
@@ -53,7 +66,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider.index = index
         self.slider_pressed = False
         self.logger.write_to_log("Dataset index set at " + str(index) + ".")
-
 
     def startButton_on_click(self):
         self.ui.startButton.setEnabled(False)
@@ -94,6 +106,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_size = len(self.signal_provider)
         self.logger.write_to_log("File '" + file_name + "' opened.")
 
+    def open_about(self):
+        self.about.show()
 
 class Logger:
     """

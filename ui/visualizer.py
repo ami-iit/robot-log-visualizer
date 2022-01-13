@@ -74,6 +74,8 @@ class Ui_MainWindow(object):
         self.plotGroupBox.setAcceptDrops(True)
         self.plotGroupBox.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.plotGroupBox.setObjectName("plotGroupBox")
+        self.plotBoxLayout = QtWidgets.QGridLayout(self.plotGroupBox)
+        self.plotBoxLayout.setObjectName("plotBoxLayout")
         self.meshcatView = QtWebEngineWidgets.QWebEngineView(self.horizSplitter)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.MinimumExpanding)
         sizePolicy.setHorizontalStretch(1)

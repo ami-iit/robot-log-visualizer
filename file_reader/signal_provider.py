@@ -26,8 +26,25 @@ class SignalProvider(QThread):
 
         self.s = np.array([])
 
+        self.data = {}
+
+    def __populate_data(self, file_object):
+        data = {}
+        for key, value in file_object.items():
+            if not isinstance(value, h5py._hl.group.Group):
+                continue
+            if key == '#refs#':
+                continue
+            if 'data' in value.keys():
+                data[key] = np.squeeze(np.array(value['data']))
+            else:
+                data[key] = self.__populate_data(file_object=value)
+
+        return data
+
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, 'r') as f:
+            self.data = self.__populate_data(f)
             self.s = np.squeeze(np.array(f['robot_logger_device']['joints_state']['positions']['data']))
             self.index = 0
 

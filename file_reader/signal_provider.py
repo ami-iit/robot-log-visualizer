@@ -1,9 +1,13 @@
 import time
+import math
 
 import h5py
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread
 from threading import Lock
+
+# Matplotlib class
+from plotter.matplotlib_viewer_canvas import MatplotlibViewerCanvas
 
 
 class SignalProvider(QThread):
@@ -27,6 +31,12 @@ class SignalProvider(QThread):
         self.s = np.array([])
 
         self.data = {}
+        #
+        # # Plotter
+        # self.mpl_canvas = None
+
+        self.initial_time = math.inf
+        self.end_time = - math.inf
 
     def __populate_data(self, file_object):
         data = {}
@@ -39,10 +49,16 @@ class SignalProvider(QThread):
                 data[key] = {}
                 data[key]['data'] = np.squeeze(np.array(value['data']))
                 data[key]['timestamps'] = np.array(value['timestamps'])
+                self.initial_time = min(self.initial_time,data[key]['timestamps'][0])
+                self.end_time = max(self.end_time,data[key]['timestamps'][-1])
             else:
                 data[key] = self.__populate_data(file_object=value)
 
         return data
+
+    # def assign_canvas(self, mpl_canvas: MatplotlibViewerCanvas):
+    #
+    #     self.mpl_canvas = mpl_canvas
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, 'r') as f:
@@ -90,7 +106,7 @@ class SignalProvider(QThread):
                 self.index = temp_index + int(100/self.fps)
                 R = np.eye(3)
                 p = np.array([0.0, 0.0, 0.0])
-                self.meshcat_visualizer.display(p, R, self._last_data)
+                self.meshcat_visualizer.set_multy_body_system_state(p, R, self._last_data, model_name="robot")
                 self.update_index.emit()
 
             time.sleep(1/self.fps)

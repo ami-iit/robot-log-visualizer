@@ -36,7 +36,9 @@ class SignalProvider(QThread):
             if key == '#refs#':
                 continue
             if 'data' in value.keys():
-                data[key] = np.squeeze(np.array(value['data']))
+                data[key] = {}
+                data[key]['data'] = np.squeeze(np.array(value['data']))
+                data[key]['timestamps'] = np.array(value['timestamps'])
             else:
                 data[key] = self.__populate_data(file_object=value)
 

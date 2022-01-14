@@ -100,6 +100,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
             return parent
+        if 'data' in obj.keys() and 'timestamps' in obj.keys():
+            return parent
         for key, value in obj.items():
             item = QTreeWidgetItem([key])
             item = self.__populate_variable_tree_widget(value, item)

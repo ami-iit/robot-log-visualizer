@@ -90,7 +90,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         self.axes.set_xlim(0, self.signal_provider.end_time - self.signal_provider.initial_time)
         self.axes.legend()
-
+        self.draw()
 
     def update_index(self, index):
         self.index = index

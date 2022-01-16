@@ -58,7 +58,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         # start the vertical line animation
         self.vertical_line, = self.axes.plot([], [], 'o-', lw=1, c='k')
-        self.vertical_line_anim = animation.FuncAnimation(figure, self.update_vertical_line, interval=time_step, ) # TODO blit=True
+        #self.vertical_line_anim = animation.FuncAnimation(figure, self.update_vertical_line, interval=time_step, ) # TODO blit=True
 
     def update_plots(self, paths):
 

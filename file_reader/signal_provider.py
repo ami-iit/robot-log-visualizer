@@ -11,7 +11,7 @@ from plotter.matplotlib_viewer_canvas import MatplotlibViewerCanvas
 
 
 class SignalProvider(QThread):
-    update_index = pyqtSignal()
+    update_index_signal = pyqtSignal()
 
     def __init__(self, meshcat_visualizer):
         QThread.__init__(self)
@@ -19,8 +19,6 @@ class SignalProvider(QThread):
         # set device state
         self._state = 'pause'
         self.state_lock = Lock()
-
-        self._last_data = None
 
         self._index = 0
         self.index_lock = Lock()
@@ -37,6 +35,8 @@ class SignalProvider(QThread):
 
         self.initial_time = math.inf
         self.end_time = - math.inf
+
+        self.current_time = 0
 
     def __populate_data(self, file_object):
         data = {}
@@ -96,20 +96,46 @@ class SignalProvider(QThread):
         self.index_lock.release()
 
     def register_update_index(self, slot):
-        self.update_index.connect(slot)
+        self.update_index_signal.connect(slot)
+
+    def update_index(self, index):
+        self.index_lock.acquire()
+        self._index = index
+        self.current_time = self.data['robot_logger_device']['joints_state']['positions']['timestamps'][index] - self.initial_time
+        self.index_lock.release()
+
 
     def run(self):
-        while True:
-            if self.state == 'running':
-                temp_index = min(self.index, self.s.shape[0] - 1)
-                self._last_data = self.s[temp_index, :]
-                self.index = temp_index + int(100/self.fps)
-                R = np.eye(3)
-                p = np.array([0.0, 0.0, 0.0])
-                self.meshcat_visualizer.set_multy_body_system_state(p, R, self._last_data, model_name="robot")
-                self.update_index.emit()
 
-            time.sleep(1/self.fps)
+        period = 1 / self.fps
+        R = np.eye(3)
+        p = np.array([0.0, 0.0, 0.0])
+
+        while True:
+            start = time.time()
+            if self.state == 'running':
+                joints = self.data['robot_logger_device']['joints_state']['positions']['data']
+                timestamps = self.data['robot_logger_device']['joints_state']['positions']['timestamps']
+
+                self.index_lock.acquire()
+                tmp_index = self._index
+                # check if index must be increased increased
+                if self.current_time > timestamps[tmp_index] - self.initial_time:
+                    tmp_index += 1
+                    tmp_index = min(tmp_index, timestamps.shape[0] - 1)
+
+                self.meshcat_visualizer.set_multy_body_system_state(p, R, joints[tmp_index, :], model_name="robot")
+                self._index = tmp_index
+                self.index_lock.release()
+
+                self.current_time += period
+                self.update_index_signal.emit()
+
+            end = time.time()
+
+            sleep_time = period - (end - start)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
 
 

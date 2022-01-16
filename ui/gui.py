@@ -102,7 +102,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def timeSlider_on_release(self):
         index = int(self.ui.timeSlider.value() / 100 * self.signal_size)
-        self.signal_provider.index = index
+        self.signal_provider.update_index(index)
         self.slider_pressed = False
         self.logger.write_to_log("Dataset index set at " + str(index) + ".")
 

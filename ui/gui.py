@@ -27,6 +27,19 @@ class About(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
 
 
+def build_plot_title_box_dialog():
+    dlg = QDialog()
+    dlg.setWindowTitle("Plot title")
+    la = QVBoxLayout(dlg)
+    line_edit = QLineEdit()
+    la.addWidget(line_edit)
+    bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+    bb.clicked.connect(dlg.accept)
+    bb.rejected.connect(dlg.reject)
+    la.addWidget(bb)
+    dlg.setLayout(la)
+    return dlg, line_edit
+
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
     """
     Main window class of EVB1000 Viewer
@@ -116,15 +129,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.tabPlotWidget.setTabsClosable(False)
 
     def plotTabBar_on_doubleClick(self, index):
-        dlg = QDialog()
-        la = QVBoxLayout(dlg)
-        ed = QLineEdit()
-        la.addWidget(ed)
-        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        la.addWidget(bb)
-        dlg.setLayout(la)
+
+        dlg, plot_title = build_plot_title_box_dialog()
         if dlg.exec() == QDialog.Accepted:
-            self.ui.tabPlotWidget.setTabText(index, ed.text())
+            self.ui.tabPlotWidget.setTabText(index, plot_title.text())
 
     def variableTreeWidget_on_click(self):
         # self.ui.pauseButton.setEnabled(False)

@@ -139,7 +139,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 item = item.parent()
             path.reverse()
             paths.append(path)
-
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(paths)
 
     def plotTabBar_currentChanged(self, index):
@@ -186,6 +185,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         for key, value in obj.items():
             item = QTreeWidgetItem([key])
             item = self.__populate_variable_tree_widget(value, item)
+            item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
             parent.addChild(item)
         return parent
 
@@ -195,12 +195,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.signal_provider.open_mat_file(file_name)
             self.ui.startButton.setEnabled(True)
             self.ui.timeSlider.setEnabled(True)
-            self.ui.timeLabel.setEnabled(True)
             self.signal_size = len(self.signal_provider)
 
             # populate tree
             root = list(self.signal_provider.data.keys())[0]
-            items = self.__populate_variable_tree_widget(self.signal_provider.data[root], QTreeWidgetItem([root]))
+            root_item = QTreeWidgetItem([root])
+            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+            items = self.__populate_variable_tree_widget(self.signal_provider.data[root], root_item)
             self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
             # write something in the log

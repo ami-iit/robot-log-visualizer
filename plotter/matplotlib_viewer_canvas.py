@@ -63,7 +63,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def update_plots(self, paths):
 
         for path in paths:
-
             path_string = '/'.join(path)
 
             if path_string not in self.active_paths.keys():
@@ -83,16 +82,15 @@ class MatplotlibViewerCanvas(FigureCanvas):
             path = active_path.split('/')
 
             if path not in paths:
-
                 paths_to_be_canceled.append(active_path)
 
         for path in paths_to_be_canceled:
             self.active_paths[path].pop(0).remove()
             self.active_paths.pop(path)
 
-        self.axes.autoscale(enable=True, axis='y', tight=None)
-        self.axes.set_xlim(0,self.signal_provider.end_time - self.signal_provider.initial_time)
+        self.axes.set_xlim(0, self.signal_provider.end_time - self.signal_provider.initial_time)
         self.axes.legend()
+
 
     def update_index(self, index):
         self.index = index

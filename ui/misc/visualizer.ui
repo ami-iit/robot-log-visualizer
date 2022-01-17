@@ -30,6 +30,9 @@
       <property name="orientation">
        <enum>Qt::Vertical</enum>
       </property>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
+      </property>
       <widget class="QGroupBox" name="dataVisualizationGroupBox">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -101,6 +104,9 @@
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
+          <property name="childrenCollapsible">
+           <bool>false</bool>
+          </property>
           <widget class="QTreeWidget" name="variableTreeWidget">
            <property name="sizePolicy">
             <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
@@ -137,6 +143,9 @@
            </property>
            <attribute name="headerVisible">
             <bool>false</bool>
+           </attribute>
+           <attribute name="headerDefaultSectionSize">
+            <number>100</number>
            </attribute>
            <column>
             <property name="text">

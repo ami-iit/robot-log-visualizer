@@ -177,26 +177,14 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <property name="singleStep">
-           <number>1</number>
-          </property>
           <property name="pageStep">
            <number>1</number>
-          </property>
-          <property name="value">
-           <number>0</number>
           </property>
           <property name="tracking">
            <bool>true</bool>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="tickPosition">
-           <enum>QSlider::TicksAbove</enum>
-          </property>
-          <property name="tickInterval">
-           <number>1</number>
           </property>
          </widget>
         </item>
@@ -240,6 +228,18 @@
        </property>
        <property name="currentIndex">
         <number>0</number>
+       </property>
+       <property name="usesScrollButtons">
+        <bool>false</bool>
+       </property>
+       <property name="documentMode">
+        <bool>false</bool>
+       </property>
+       <property name="tabsClosable">
+        <bool>false</bool>
+       </property>
+       <property name="movable">
+        <bool>false</bool>
        </property>
        <widget class="QWidget" name="tab_5">
         <attribute name="icon">

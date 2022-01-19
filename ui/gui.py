@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QToolButton, QDialog, 
 
 from ui.plot_item import PlotItem
 
+from utils.utils import PeriodicThreadState
 
 import sys
 
@@ -47,7 +48,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     Main window class of EVB1000 Viewer
     """
 
-    def __init__(self, meshcat: str, signal_provider):
+    def __init__(self, meshcat: str, signal_provider, meshcat_provider):
         # call QMainWindow constructor
         super().__init__()
 
@@ -60,6 +61,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider = signal_provider
         self.signal_size = len(self.signal_provider)
         self.signal_provider.register_update_index(self.update_slider)
+
+        self.meshcat_provider = meshcat_provider
 
         self.tool_button = QToolButton()
         self.tool_button.setText('+')
@@ -120,7 +123,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.slider_pressed = True
 
     def timeSlider_on_release(self):
-        index = int(self.ui.timeSlider.value() / 100 * self.signal_size)
+        index = int(self.ui.timeSlider.value())
         self.signal_provider.update_index(index)
         self.slider_pressed = False
         self.logger.write_to_log("Dataset index set at " + str(index) + ".")
@@ -128,20 +131,23 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def startButton_on_click(self):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
-        self.signal_provider.state = "running"
+        self.signal_provider.state = PeriodicThreadState.running
+        self.meshcat_provider.state = PeriodicThreadState.running
 
         self.logger.write_to_log("Dataset started.")
 
     def pauseButton_on_click(self):
         self.ui.pauseButton.setEnabled(False)
         self.ui.startButton.setEnabled(True)
-        self.signal_provider.state = "pause"
+        self.signal_provider.state = PeriodicThreadState.pause
+        self.meshcat_provider.state = PeriodicThreadState.pause
 
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
 
         self.ui.tabPlotWidget.removeTab(index)
+        self.plot_items[index].canvas.quit_animation()
         del self.plot_items[index]
 
         if self.ui.tabPlotWidget.count() == 1:
@@ -154,9 +160,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.tabPlotWidget.setTabText(index, plot_title.text())
 
     def variableTreeWidget_on_click(self):
-        # self.ui.pauseButton.setEnabled(False)
-        # self.ui.startButton.setEnabled(True)
-        # self.signal_provider.state = "pause"
 
         paths = []
         for item in self.ui.variableTreeWidget.selectedItems():
@@ -186,8 +189,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     @pyqtSlot()
     def update_slider(self):
         if not self.slider_pressed:
-            index = 100 * self.signal_provider.index / self.signal_size
-            self.ui.timeSlider.setValue(index)
+            self.ui.timeSlider.setValue(self.signal_provider.index)
 
     def quit(self):
         """
@@ -198,6 +200,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # close the window
         self.pyconsole.close()
+        self.signal_provider.state = PeriodicThreadState.closed
+        self.meshcat_provider.state = PeriodicThreadState.closed
+
+        self.signal_provider.terminate()
+        self.meshcat_provider.terminate()
         self.close()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
@@ -221,8 +228,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open a mat file", ".", filter='*.mat')
         if file_name:
             self.signal_provider.open_mat_file(file_name)
-            self.ui.startButton.setEnabled(True)
-            self.ui.timeSlider.setEnabled(True)
             self.signal_size = len(self.signal_provider)
 
             # populate tree
@@ -232,8 +237,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             items = self.__populate_variable_tree_widget(self.signal_provider.data[root], root_item)
             self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
-
             self.pyconsole.push_local_ns("data", self.signal_provider.data)
+
+            self.ui.timeSlider.setMaximum(self.signal_size)
+            self.ui.startButton.setEnabled(True)
+            self.ui.timeSlider.setEnabled(True)
 
             # write something in the log
             self.logger.write_to_log("File '" + file_name + "' opened.")

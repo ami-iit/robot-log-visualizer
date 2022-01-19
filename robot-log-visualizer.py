@@ -11,6 +11,7 @@ from file_reader.signal_provider import SignalProvider
 
 # Meshcat
 from robot_visualizer.meshcat_visualizer import MeshcatVisualizer
+from robot_visualizer.meshcat_provider import MeshcatProvider
 
 
 def get_model_path(robot_name='iCubGazeboV3'):
@@ -31,6 +32,8 @@ def get_joint_list():
     return joint_list
 
 
+thread_periods = {'meshcat_provider': 0.02, 'signal_provider': 0.02}
+
 if __name__ == '__main__':
     # instantiate device_manager
     meshcat = MeshcatVisualizer()
@@ -38,17 +41,22 @@ if __name__ == '__main__':
                                  considered_joints=get_joint_list(),
                                  model_name='robot',
                                  color=[1, 1, 1, 0.8])
-    signal_provider = SignalProvider(meshcat)
+    signal_provider = SignalProvider(period=thread_periods['signal_provider'])
+
+    meshcat_provider = MeshcatProvider(period=thread_periods['meshcat_provider'],
+                                       meshcat_visualizer=meshcat,
+                                       signal_provider=signal_provider)
 
     # instantiate a QApplication
     app = QApplication(sys.argv)
 
     # instantiate the main window
-    gui = RobotViewerMainWindow(meshcat=meshcat, signal_provider=signal_provider)
+    gui = RobotViewerMainWindow(meshcat=meshcat, signal_provider=signal_provider, meshcat_provider=meshcat_provider)
 
     # show the main window
     gui.show()
 
     signal_provider.start()
+    meshcat_provider.start()
 
     sys.exit(app.exec_())

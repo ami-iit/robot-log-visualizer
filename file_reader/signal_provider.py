@@ -3,40 +3,33 @@ import math
 
 import h5py
 import numpy as np
-from PyQt5.QtCore import pyqtSignal, QThread
-from threading import Lock
+from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 
-# Matplotlib class
-from plotter.matplotlib_viewer_canvas import MatplotlibViewerCanvas
+from utils.utils import PeriodicThreadState
 
 
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
-    def __init__(self, meshcat_visualizer):
+    def __init__(self, period: float):
         QThread.__init__(self)
 
         # set device state
-        self._state = 'pause'
-        self.state_lock = Lock()
+        self._state = PeriodicThreadState.pause
+        self.state_lock = QMutex()
 
         self._index = 0
-        self.index_lock = Lock()
+        self.index_lock = QMutex()
 
-        self.fps = 50
-        self.meshcat_visualizer = meshcat_visualizer
-
-        self.s = np.array([])
+        self.period = period
 
         self.data = {}
-        #
-        # # Plotter
-        # self.mpl_canvas = None
+        self.timestamps = np.array([])
 
         self.initial_time = math.inf
         self.end_time = - math.inf
 
-        self.current_time = 0
+        self._current_time = 0
 
     def __populate_data(self, file_object):
         data = {}
@@ -49,96 +42,86 @@ class SignalProvider(QThread):
                 data[key] = {}
                 data[key]['data'] = np.squeeze(np.array(value['data']))
                 data[key]['timestamps'] = np.array(value['timestamps'])
-                self.initial_time = min(self.initial_time,data[key]['timestamps'][0])
-                self.end_time = max(self.end_time,data[key]['timestamps'][-1])
+
+                # if the initial or end time has been updated we can also update the entire timestamps dataset
+                if data[key]['timestamps'][0] < self.initial_time:
+                    self.timestamps = data[key]['timestamps']
+                    self.initial_time = data[key]['timestamps'][0]
+
+                if data[key]['timestamps'][-1] > self.end_time:
+                    self.timestamps = data[key]['timestamps']
+                    self.end_time = data[key]['timestamps'][-1]
+
             else:
                 data[key] = self.__populate_data(file_object=value)
 
         return data
 
-    # def assign_canvas(self, mpl_canvas: MatplotlibViewerCanvas):
-    #
-    #     self.mpl_canvas = mpl_canvas
-
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, 'r') as f:
             self.data = self.__populate_data(f)
-            self.s = np.squeeze(np.array(f['robot_logger_device']['joints_state']['positions']['data']))
             self.index = 0
 
     def __len__(self):
-        return self.s.shape[0]
+        return self.timestamps.shape[0]
 
     @property
     def state(self):
-        self.state_lock.acquire()
+        locker = QMutexLocker(self.state_lock)
         value = self._state
-        self.state_lock.release()
         return value
 
     @state.setter
-    def state(self, new_state):
-        self.state_lock.acquire()
+    def state(self, new_state: PeriodicThreadState):
+        locker = QMutexLocker(self.state_lock)
         self._state = new_state
-        self.state_lock.release()
 
     @property
     def index(self):
-        self.index_lock.acquire()
+        locker = QMutexLocker(self.index_lock)
         value = self._index
-        self.index_lock.release()
         return value
 
     @index.setter
     def index(self, index):
-        self.index_lock.acquire()
+        locker = QMutexLocker(self.index_lock)
         self._index = index
-        self.index_lock.release()
 
     def register_update_index(self, slot):
         self.update_index_signal.connect(slot)
 
     def update_index(self, index):
-        self.index_lock.acquire()
+        locker = QMutexLocker(self.index_lock)
         self._index = index
-        self.current_time = self.data['robot_logger_device']['joints_state']['positions']['timestamps'][index] - self.initial_time
-        self.index_lock.release()
+        self._current_time = self.timestamps[index] - self.initial_time
 
+    @property
+    def current_time(self):
+        locker = QMutexLocker(self.index_lock)
+        value = self._current_time
+        return value
 
     def run(self):
 
-        period = 1 / self.fps
-        R = np.eye(3)
-        p = np.array([0.0, 0.0, 0.0])
-
         while True:
             start = time.time()
-            if self.state == 'running':
-                joints = self.data['robot_logger_device']['joints_state']['positions']['data']
-                timestamps = self.data['robot_logger_device']['joints_state']['positions']['timestamps']
-
-                self.index_lock.acquire()
+            if self.state == PeriodicThreadState.running:
+                self.index_lock.lock()
                 tmp_index = self._index
-                # check if index must be increased increased
-                if self.current_time > timestamps[tmp_index] - self.initial_time:
+                # check if index must be increased
+                if self._current_time > self.timestamps[tmp_index] - self.initial_time:
                     tmp_index += 1
-                    tmp_index = min(tmp_index, timestamps.shape[0] - 1)
+                    tmp_index = min(tmp_index, self.timestamps.shape[0] - 1)
 
-                self.meshcat_visualizer.set_multy_body_system_state(p, R, joints[tmp_index, :], model_name="robot")
                 self._index = tmp_index
-                self.index_lock.release()
+                self._current_time += self.period
+                self.index_lock.unlock()
 
-                self.current_time += period
                 self.update_index_signal.emit()
 
-            end = time.time()
+            if self.state == PeriodicThreadState.closed:
+                return
 
-            sleep_time = period - (end - start)
+            sleep_time = self.period - (time.time() - start)
             if sleep_time > 0:
                 time.sleep(sleep_time)
-
-
-
-
-
-

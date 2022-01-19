@@ -205,6 +205,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.signal_provider.terminate()
         self.meshcat_provider.terminate()
+
+        # delete all plots
+        self.plot_items = []
+
         self.close()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:

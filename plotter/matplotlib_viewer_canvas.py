@@ -51,7 +51,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def quit_animation(self):
         # https://stackoverflow.com/questions/32280140/cannot-delete-matplotlib-animation-funcanimation-objects
         # this is to close the event associated to the animation
-        self.vertical_line_anim._stop()
+
+        # this is required with matplotlib 3.1.2 but not with 3.5.1 the if handles this
+        if (self.vertical_line_anim):
+            self.vertical_line_anim._stop()
 
     def update_plots(self, paths):
 
@@ -69,7 +72,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 self.active_paths[path_string] = self.axes.plot(timestamps, datapoints, label=path_string)
 
         paths_to_be_canceled = []
-
         for active_path in self.active_paths.keys():
 
             path = active_path.split('/')

@@ -1,8 +1,5 @@
-# numpy
-import numpy as np
 
 # PyQt
-from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -19,10 +16,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def __init__(self, parent, animation_frame_rate, signal_provider):
 
         # create a new figure
-        fig = Figure(dpi=100)
+        self.fig = Figure(dpi=200)
 
         # call FigureCanvas constructor
-        FigureCanvas.__init__(self, fig)
+        FigureCanvas.__init__(self, self.fig)
 
         # set the parent of this FigureCanvas
         self.setParent(parent)
@@ -33,32 +30,28 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # setup the plot and the animations
         self.index = 0
         self.animation_frame_rate = animation_frame_rate
-        self.setup_plot(fig)
-
-        # active paths
-        self.active_paths = {}
-
-        #add plot toolbar from matplotlib
-        self.toolbar = NavigationToolbar(self, self)
-
-    def setup_plot(self, figure):
-        """
-        Setup the main plot of the figure.
-        """
-
         # add plot to the figure
-        self.axes = figure.add_subplot()
+        self.axes = self.fig.add_subplot()
 
         # set axes labels
         self.axes.set_xlabel("time [s]")
         self.axes.set_ylabel("value")
 
-        # Define animations timestep
-        time_step = 1.0 / self.animation_frame_rate * 1000
-
         # start the vertical line animation
-        self.vertical_line, = self.axes.plot([], [], 'o-', lw=1, c='k')
-        #self.vertical_line_anim = animation.FuncAnimation(figure, self.update_vertical_line, interval=time_step, ) # TODO blit=True
+        self.vertical_line, = self.axes.plot([], [], '-', lw=1, c='k')
+        self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
+                                                          interval=30, blit=True)
+
+        # active paths
+        self.active_paths = {}
+
+        # add plot toolbar from matplotlib
+        self.toolbar = NavigationToolbar(self, self)
+
+    def quit_animation(self):
+        # https://stackoverflow.com/questions/32280140/cannot-delete-matplotlib-animation-funcanimation-objects
+        # this is to close the event associated to the animation
+        self.vertical_line_anim._stop()
 
     def update_plots(self, paths):
 
@@ -95,13 +88,16 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def update_index(self, index):
         self.index = index
 
-    def update_vertical_line(self, frame_number):
+    def init_vertical_line(self):
+        self.vertical_line.set_data([], [])
+        return self.vertical_line,
+
+    def update_vertical_line(self, _):
         """
         Update the vertical line
         """
-
+        current_time = self.signal_provider.current_time
         # Draw vertical line at current index
-        x = [self.index, self.index]
-        y = [-1000, 1000]
-        self.vertical_line.set_data(x, y)
+        self.vertical_line.set_data([current_time, current_time], self.axes.get_ylim())
+        return self.vertical_line,
 

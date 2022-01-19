@@ -16,7 +16,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def __init__(self, parent, animation_frame_rate, signal_provider):
 
         # create a new figure
-        self.fig = Figure(dpi=200)
+        self.fig = Figure(dpi=100)
 
         # call FigureCanvas constructor
         FigureCanvas.__init__(self, self.fig)

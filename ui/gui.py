@@ -89,6 +89,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.clicked.connect(self.startButton_on_click)
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
+        self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
 
         self.ui.variableTreeWidget.itemClicked.connect(self.variableTreeWidget_on_click)
         self.ui.tabPlotWidget.tabCloseRequested.connect(self.plotTabCloseButton_on_click)
@@ -124,6 +125,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def timeSlider_on_pressed(self):
         self.slider_pressed = True
 
+    def timeSlider_on_sliderMoved(self):
+        index = int(self.ui.timeSlider.value())
+        self.signal_provider.update_index(index)
+
     def timeSlider_on_release(self):
         index = int(self.ui.timeSlider.value())
         self.signal_provider.update_index(index)
@@ -134,7 +139,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
         self.signal_provider.state = PeriodicThreadState.running
-        self.meshcat_provider.state = PeriodicThreadState.running
+        #self.meshcat_provider.state = PeriodicThreadState.running
 
         self.logger.write_to_log("Dataset started.")
 
@@ -142,7 +147,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.pauseButton.setEnabled(False)
         self.ui.startButton.setEnabled(True)
         self.signal_provider.state = PeriodicThreadState.pause
-        self.meshcat_provider.state = PeriodicThreadState.pause
+        #self.meshcat_provider.state = PeriodicThreadState.pause
 
         self.logger.write_to_log("Dataset paused.")
 
@@ -248,6 +253,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.timeSlider.setMaximum(self.signal_size)
             self.ui.startButton.setEnabled(True)
             self.ui.timeSlider.setEnabled(True)
+
+            self.meshcat_provider.state = PeriodicThreadState.running
 
             # write something in the log
             self.logger.write_to_log("File '" + file_name + "' opened.")

@@ -31,10 +31,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.index = 0
         # add plot to the figure
         self.axes = self.fig.add_subplot()
-
         # set axes labels
         self.axes.set_xlabel("time [s]")
         self.axes.set_ylabel("value")
+        self.axes.grid(True)
 
         # start the vertical line animation
         self.vertical_line, = self.axes.plot([], [], '-', lw=1, c='k')
@@ -92,9 +92,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized
         self.vertical_line_anim._stop()
+        self.axes.legend()
         self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
                                                           init_func=self.init_vertical_line,
                                                           interval=self.periond_in_ms, blit=True)
+
 
     def update_index(self, index):
         self.index = index

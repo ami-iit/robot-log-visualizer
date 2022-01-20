@@ -32,9 +32,10 @@ def get_joint_list():
     return joint_list
 
 
-thread_periods = {'meshcat_provider': 0.02, 'signal_provider': 0.02}
 
-if __name__ == '__main__':
+def main():
+    thread_periods = {'meshcat_provider': 0.02, 'signal_provider': 0.01, 'plot_animation': 0.02}
+
     # instantiate device_manager
     meshcat = MeshcatVisualizer()
     meshcat.load_model_from_file(model_path=get_model_path(),
@@ -51,7 +52,10 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     # instantiate the main window
-    gui = RobotViewerMainWindow(meshcat=meshcat, signal_provider=signal_provider, meshcat_provider=meshcat_provider)
+    gui = RobotViewerMainWindow(meshcat=meshcat,
+                                signal_provider=signal_provider,
+                                meshcat_provider=meshcat_provider,
+                                animation_period=thread_periods['plot_animation'])
 
     # show the main window
     gui.show()
@@ -59,4 +63,8 @@ if __name__ == '__main__':
     signal_provider.start()
     meshcat_provider.start()
 
-    sys.exit(app.exec_())
+    return app.exec_()
+
+if __name__ == '__main__':
+
+    sys.exit(main())

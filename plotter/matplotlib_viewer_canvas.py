@@ -13,10 +13,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
     Inherits from FigureCanvasQTAgg in order to integrate with PyQt.
     """
 
-    def __init__(self, parent, animation_frame_rate, signal_provider):
+    def __init__(self, parent, signal_provider, period):
 
         # create a new figure
-        self.fig = Figure(dpi=200)
+        self.fig = Figure(dpi=100)
 
         # call FigureCanvas constructor
         FigureCanvas.__init__(self, self.fig)
@@ -29,7 +29,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         # setup the plot and the animations
         self.index = 0
-        self.animation_frame_rate = animation_frame_rate
         # add plot to the figure
         self.axes = self.fig.add_subplot()
 
@@ -39,8 +38,12 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         # start the vertical line animation
         self.vertical_line, = self.axes.plot([], [], '-', lw=1, c='k')
+
+        self.periond_in_ms = int(period * 1000)
+
         self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
-                                                          interval=30, blit=True)
+                                                          init_func=self.init_vertical_line,
+                                                          interval=self.periond_in_ms, blit=True)
 
         # active paths
         self.active_paths = {}
@@ -51,7 +54,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def quit_animation(self):
         # https://stackoverflow.com/questions/32280140/cannot-delete-matplotlib-animation-funcanimation-objects
         # this is to close the event associated to the animation
-        self.vertical_line_anim._stop()
+
+        # this is required with matplotlib 3.1.2 but not with 3.5.1.
+        # However this code will run with both version of matplotlib
+        if self.vertical_line_anim:
+            self.vertical_line_anim._stop()
 
     def update_plots(self, paths):
 
@@ -66,10 +73,9 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 datapoints = data['data'][:,int(path[-1])]
                 timestamps = data['timestamps'] - self.signal_provider.initial_time
 
-                self.active_paths[path_string] = self.axes.plot(timestamps, datapoints, label=path_string)
+                self.active_paths[path_string],  = self.axes.plot(timestamps, datapoints, label=path_string)
 
         paths_to_be_canceled = []
-
         for active_path in self.active_paths.keys():
 
             path = active_path.split('/')
@@ -78,19 +84,24 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 paths_to_be_canceled.append(active_path)
 
         for path in paths_to_be_canceled:
-            self.active_paths[path].pop(0).remove()
+            self.active_paths[path].remove()
             self.active_paths.pop(path)
 
         self.axes.set_xlim(0, self.signal_provider.end_time - self.signal_provider.initial_time)
-        self.axes.legend()
-        self.draw()
+
+        # Since a new plot has been added/removed we delete the old animation and we create a new one
+        # TODO: this part could be optimized
+        self.vertical_line_anim._stop()
+        self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
+                                                          init_func=self.init_vertical_line,
+                                                          interval=self.periond_in_ms, blit=True)
 
     def update_index(self, index):
         self.index = index
 
     def init_vertical_line(self):
         self.vertical_line.set_data([], [])
-        return self.vertical_line,
+        return self.vertical_line, *(self.active_paths.values())
 
     def update_vertical_line(self, _):
         """
@@ -98,6 +109,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
         """
         current_time = self.signal_provider.current_time
         # Draw vertical line at current index
+
         self.vertical_line.set_data([current_time, current_time], self.axes.get_ylim())
-        return self.vertical_line,
+        return self.vertical_line, *(self.active_paths.values())
 

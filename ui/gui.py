@@ -48,9 +48,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     Main window class of EVB1000 Viewer
     """
 
-    def __init__(self, meshcat: str, signal_provider, meshcat_provider):
+    def __init__(self, meshcat: str, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
+
+        self.animation_period = animation_period
 
         # set up the user interface
         self.ui = Ui_MainWindow()
@@ -111,7 +113,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.pyconsole.eval_in_thread()
 
     def toolButton_on_click(self):
-        self.plot_items.append(PlotItem(signal_provider=self.signal_provider))
+        self.plot_items.append(PlotItem(signal_provider=self.signal_provider, period=self.animation_period))
         self.ui.tabPlotWidget.addTab(self.plot_items[-1], 'Plot')
 
         if self.ui.tabPlotWidget.count() == 1:
@@ -205,6 +207,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.signal_provider.terminate()
         self.meshcat_provider.terminate()
+
+        # delete all plots
+        self.plot_items = []
+
         self.close()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:

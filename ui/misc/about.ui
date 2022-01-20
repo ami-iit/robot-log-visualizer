@@ -6,53 +6,25 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>650</width>
-    <height>200</height>
+    <width>541</width>
+    <height>102</height>
    </rect>
   </property>
   <property name="maximumSize">
    <size>
-    <width>650</width>
-    <height>200</height>
+    <width>541</width>
+    <height>102</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>Robot Log Visualizer - About</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <property name="minimumSize">
-    <size>
-     <width>650</width>
-     <height>200</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>650</width>
-     <height>200</height>
-    </size>
-   </property>
    <layout class="QHBoxLayout" name="horizontalLayout">
-    <item>
-     <widget class="QLabel" name="label">
-      <property name="text">
-       <string/>
-      </property>
-      <property name="pixmap">
-       <pixmap>../misc/logo.png</pixmap>
-      </property>
-     </widget>
-    </item>
     <item>
      <widget class="QLabel" name="label_2">
       <property name="enabled">
        <bool>true</bool>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>16777215</height>
-       </size>
       </property>
       <property name="text">
        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt; font-weight:600;&quot;&gt;About Robot Log Visualizer&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;This program is Licensed under the &lt;/span&gt;&lt;a href=&quot;https://github.com/ami-iit/robot-log-visualizer/blob/main/LICENSE&quot;&gt;&lt;span style=&quot; font-size:12pt; text-decoration: underline; color:#0000ff;&quot;&gt;3-Clause BSD License&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;The project is mintained by the &lt;/span&gt;&lt;a href=&quot;https://ami.iit.it/&quot;&gt;&lt;span style=&quot; font-size:12pt; text-decoration: underline; color:#0000ff;&quot;&gt;Artificial and Mechanical Intelligence Lab&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -61,19 +33,6 @@
        <bool>true</bool>
       </property>
      </widget>
-    </item>
-    <item>
-     <spacer name="horizontalSpacer">
-      <property name="orientation">
-       <enum>Qt::Horizontal</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>40</width>
-        <height>20</height>
-       </size>
-      </property>
-     </spacer>
     </item>
    </layout>
   </widget>

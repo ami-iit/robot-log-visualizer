@@ -34,7 +34,7 @@ def get_joint_list():
 
 
 def main():
-    thread_periods = {'meshcat_provider': 0.02, 'signal_provider': 0.02}
+    thread_periods = {'meshcat_provider': 0.02, 'signal_provider': 0.01, 'plot_animation': 0.02}
 
     # instantiate device_manager
     meshcat = MeshcatVisualizer()
@@ -52,8 +52,10 @@ def main():
     app = QApplication(sys.argv)
 
     # instantiate the main window
-    gui = RobotViewerMainWindow(meshcat=meshcat, signal_provider=signal_provider,
-                                meshcat_provider=meshcat_provider)
+    gui = RobotViewerMainWindow(meshcat=meshcat,
+                                signal_provider=signal_provider,
+                                meshcat_provider=meshcat_provider,
+                                animation_period=thread_periods['plot_animation'])
 
     # show the main window
     gui.show()

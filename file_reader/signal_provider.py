@@ -1,12 +1,13 @@
+# Copyright (C) 2022 Istituto Italiano di Tecnologia (IIT). All rights reserved.
+# This software may be modified and distributed under the terms of the
+# Released under the terms of the BSD 3-Clause License
+
 import time
 import math
-
 import h5py
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
-
 from utils.utils import PeriodicThreadState
-
 
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()

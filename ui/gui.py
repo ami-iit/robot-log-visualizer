@@ -1,3 +1,7 @@
+# Copyright (C) 2022 Istituto Italiano di Tecnologia (IIT). All rights reserved.
+# This software may be modified and distributed under the terms of the
+# Released under the terms of the BSD 3-Clause License
+
 # PyQt5
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QUrl
@@ -44,9 +48,6 @@ def build_plot_title_box_dialog():
     return dlg, line_edit
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
-    """
-    Main window class of EVB1000 Viewer
-    """
 
     def __init__(self, meshcat: str, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor

@@ -93,8 +93,8 @@ class SignalProvider(QThread):
 
     def update_index(self, index):
         locker = QMutexLocker(self.index_lock)
-        self._index = index
-        self._current_time = self.timestamps[index] - self.initial_time
+        self._index = max(min(index, len(self.timestamps) - 1), 0)
+        self._current_time = self.timestamps[self._index] - self.initial_time
 
     @property
     def current_time(self):

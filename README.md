@@ -32,6 +32,8 @@ Once you have install the `robot-log-visualizer` you can run it from the termina
 
 https://user-images.githubusercontent.com/16744101/150236773-a71b1cb3-884c-42bf-b03c-dca1491e55f2.mp4
 
+You can navigate the dataset thanks to the slider or by pressing `Ctrl-f` and `Ctrl-b` to move
+forward and backward.
 
 ##  🐛 Bug reports and support
 All types of [issues](https://github.com/ami-iit/robot-log-visualizer/issues/new) are welcome.

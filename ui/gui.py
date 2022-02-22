@@ -5,7 +5,7 @@
 # PyQt5
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QUrl
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
 from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QToolButton, QDialog, QVBoxLayout, QLineEdit, QDialogButtonBox
 
 from ui.plot_item import PlotItem
@@ -77,7 +77,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # instantiate the Logger
         self.logger = Logger(self.ui.logLabel, self.ui.logScrollArea)
-        self.slider_pressed = False
+        self._slider_pressed_mutex = QMutex()
+        self._slider_pressed = False
+
+        self.dataset_loaded = False
 
         # connect action
         self.ui.actionQuit.triggered.connect(self.quit)
@@ -113,6 +116,35 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.pyconsole.edit.setStyleSheet("font-size: 12px;")
         self.ui.pythonWidgetLayout.addWidget(self.pyconsole)
         self.pyconsole.eval_in_thread()
+
+    @property
+    def slider_pressed(self):
+        locker = QMutexLocker(self._slider_pressed_mutex)
+        value = self._slider_pressed
+        return value
+
+    @slider_pressed.setter
+    def slider_pressed(self, slider_pressed):
+        locker = QMutexLocker(self._slider_pressed_mutex)
+        self._slider_pressed = slider_pressed
+
+    def keyPressEvent(self, event):
+        if not self.dataset_loaded:
+            return
+
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() == Qt.Key_B:
+                self.slider_pressed = True
+                new_index = int(self.ui.timeSlider.value()) - 1
+                self.signal_provider.update_index(new_index)
+                self.ui.timeSlider.setValue(new_index)
+                self.slider_pressed = False
+            elif event.key() == Qt.Key_F:
+                self.slider_pressed = True
+                new_index = int(self.ui.timeSlider.value()) + 1
+                self.signal_provider.update_index(new_index)
+                self.ui.timeSlider.setValue(new_index)
+                self.slider_pressed = False
 
     def toolButton_on_click(self):
         self.plot_items.append(PlotItem(signal_provider=self.signal_provider, period=self.animation_period))
@@ -256,6 +288,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.timeSlider.setEnabled(True)
 
             self.meshcat_provider.state = PeriodicThreadState.running
+
+            self.dataset_loaded = True
 
             # write something in the log
             self.logger.write_to_log("File '" + file_name + "' opened.")

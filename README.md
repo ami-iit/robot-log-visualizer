@@ -1,19 +1,19 @@
 # 🤖 robot-log-visualizer
 
 `robot-log-visualizer` implements a python visualizer to display the data logged with
-[YarpRobotLoggerDevice`](https://github.com/ami-iit/bipedal-locomotion-framework/tree/master/devices/YarpRobotLoggerDevice) application.
+[`YarpRobotLoggerDevice`](https://github.com/ami-iit/bipedal-locomotion-framework/tree/master/devices/YarpRobotLoggerDevice) application.
 
 ## 📝 Install
 
 Install `python3`, if not installed (in **Ubuntu 20.04**):
 
-```bash
+```console
 sudo apt install python3.8 python3-virtualenv swig
 ```
 
 Clone the repo and install the library:
 
-```bash
+```console
 git clone https://github.com/ami-iit/robot-log-visualizer.git
 cd robot-log-visualizer
 pip install .
@@ -21,7 +21,7 @@ pip install .
 
 preferably in a [virtual environment](https://docs.python.org/3/library/venv.html#venv-def). For example:
 
-```bash
+```console
 python3 -m venv visualizer-env
 . visualizer-env/bin/activate
 ```

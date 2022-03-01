@@ -44,8 +44,7 @@ def main():
     meshcat = MeshcatVisualizer()
     meshcat.load_model_from_file(model_path=get_model_path(),
                                  considered_joints=get_joint_list(),
-                                 model_name='robot',
-                                 color=[1, 1, 1, 0.8])
+                                 model_name='robot')
     signal_provider = SignalProvider(period=thread_periods['signal_provider'])
 
     meshcat_provider = MeshcatProvider(period=thread_periods['meshcat_provider'],

@@ -47,7 +47,7 @@
         </size>
        </property>
        <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
+        <enum>QFrame::NoFrame</enum>
        </property>
        <layout class="QGridLayout" name="gridLayout_3">
         <property name="topMargin">
@@ -212,14 +212,15 @@
             <enum>QTabWidget::East</enum>
            </property>
            <property name="currentIndex">
-            <number>1</number>
+            <number>0</number>
            </property>
            <property name="documentMode">
             <bool>false</bool>
            </property>
            <widget class="QWidget" name="meshcatTab">
             <attribute name="icon">
-             <iconset theme="input-gaming"/>
+             <iconset theme="input-gaming">
+              <normaloff>.</normaloff>.</iconset>
             </attribute>
             <attribute name="title">
              <string/>
@@ -239,7 +240,8 @@
            </widget>
            <widget class="QWidget" name="videoTab">
             <attribute name="icon">
-             <iconset theme="camera-web"/>
+             <iconset theme="camera-web">
+              <normaloff>.</normaloff>.</iconset>
             </attribute>
             <attribute name="title">
              <string/>

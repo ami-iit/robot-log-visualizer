@@ -30,6 +30,8 @@ class SignalProvider(QThread):
         self.initial_time = math.inf
         self.end_time = - math.inf
 
+        self.joints_name = []
+
         self._current_time = 0
 
     def __populate_data(self, file_object):
@@ -61,6 +63,8 @@ class SignalProvider(QThread):
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, 'r') as f:
             self.data = self.__populate_data(f)
+            joint_ref = f["robot_logger_device"]["description_list"]
+            self.joints_name = ["".join(chr(c[0]) for c in f[ref]) for ref in joint_ref[0]]
             self.index = 0
 
     def __len__(self):
@@ -120,9 +124,9 @@ class SignalProvider(QThread):
 
                 self.update_index_signal.emit()
 
-            if self.state == PeriodicThreadState.closed:
-                return
-
             sleep_time = self.period - (time.time() - start)
             if sleep_time > 0:
                 time.sleep(sleep_time)
+
+            if self.state == PeriodicThreadState.closed:
+                return

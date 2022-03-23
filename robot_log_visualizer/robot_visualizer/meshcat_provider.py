@@ -9,9 +9,9 @@ import icub_models
 import numpy as np
 import time
 
-from robot_visualizer.meshcat_visualizer import MeshcatVisualizer
+from robot_log_visualizer.robot_visualizer.meshcat_visualizer import MeshcatVisualizer
 
-from utils.utils import PeriodicThreadState
+from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 
 class MeshcatProvider(QThread):

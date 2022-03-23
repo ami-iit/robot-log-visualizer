@@ -8,13 +8,13 @@ import sys
 import os
 
 # GUI
-from ui.gui import RobotViewerMainWindow
+from robot_log_visualizer.ui.gui import RobotViewerMainWindow
 from PyQt5.QtWidgets import QApplication
 
-from file_reader.signal_provider import SignalProvider
+from robot_log_visualizer.file_reader.signal_provider import SignalProvider
 
 # Meshcat
-from robot_visualizer.meshcat_provider import MeshcatProvider
+from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
 
 
 def main():

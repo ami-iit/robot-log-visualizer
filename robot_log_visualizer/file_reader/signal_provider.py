@@ -7,7 +7,7 @@ import math
 import h5py
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
-from utils.utils import PeriodicThreadState
+from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()

@@ -51,7 +51,7 @@ def build_plot_title_box_dialog():
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, meshcat: str, signal_provider, meshcat_provider, animation_period):
+    def __init__(self, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
 
@@ -85,11 +85,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.dataset_loaded = False
 
         # connect action
-        self.ui.actionQuit.triggered.connect(self.quit)
+        self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
         self.ui.actionAbout.triggered.connect(self.open_about)
 
-        self.ui.meshcatView.setUrl(QUrl(meshcat.viewer.url()))
+        self.ui.meshcatView.setUrl(QUrl(meshcat_provider.meshcat_visualizer.viewer.url()))
 
         self.ui.pauseButton.clicked.connect(self.pauseButton_on_click)
         self.ui.startButton.clicked.connect(self.startButton_on_click)
@@ -249,25 +249,20 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if not self.slider_pressed:
             self.ui.timeSlider.setValue(self.signal_provider.index)
 
-    def quit(self):
-        """
-        Quit method.
 
-        Method called when actionQuit is triggered.
-        """
+    def closeEvent(self, event):
 
         # close the window
         self.pyconsole.close()
-        self.signal_provider.state = PeriodicThreadState.closed
+        del self.media_player
+
         self.meshcat_provider.state = PeriodicThreadState.closed
+        self.meshcat_provider.wait()
 
-        self.signal_provider.terminate()
-        self.meshcat_provider.terminate()
+        self.signal_provider.state = PeriodicThreadState.closed
+        self.signal_provider.wait()
 
-        # delete all plots
-        self.plot_items = []
-
-        self.close()
+        event.accept()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
@@ -311,6 +306,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.media_loaded = os.path.isfile(video_filename)
             if (self.media_loaded):
                 self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_filename)))
+
+            # load the model
+            self.meshcat_provider.load_model(self.signal_provider.joints_name)
 
             self.meshcat_provider.state = PeriodicThreadState.running
 

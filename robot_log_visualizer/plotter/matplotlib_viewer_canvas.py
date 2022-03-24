@@ -61,10 +61,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
         if self.vertical_line_anim:
             self.vertical_line_anim._stop()
 
-    def update_plots(self, paths):
+    def update_plots(self, paths, legends):
 
-        for path in paths:
+        for path, legend in zip(paths, legends):
             path_string = '/'.join(path)
+            legend_string = '/'.join(legend[1:])
 
             if path_string not in self.active_paths.keys():
 
@@ -74,7 +75,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 datapoints = data['data'][:,int(path[-1])]
                 timestamps = data['timestamps'] - self.signal_provider.initial_time
 
-                self.active_paths[path_string],  = self.axes.plot(timestamps, datapoints, label=path_string)
+                self.active_paths[path_string],  = self.axes.plot(timestamps, datapoints, label=legend_string)
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():

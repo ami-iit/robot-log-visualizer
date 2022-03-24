@@ -218,16 +218,27 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.tabPlotWidget.setTabText(index, plot_title.text())
 
     def variableTreeWidget_on_click(self):
-
         paths = []
-        for item in self.ui.variableTreeWidget.selectedItems():
+        legends = []
+        for index in self.ui.variableTreeWidget.selectedIndexes():
             path = []
-            while item is not None:
-                path.append(item.text(0))
-                item = item.parent()
+            legend = []
+            is_leaf = True
+            while index.data() is not None:
+                legend.append(index.data())
+                if not is_leaf:
+                    path.append(index.data())
+                else:
+                    path.append(str(index.row()))
+                    is_leaf = False
+
+                index = index.parent()
             path.reverse()
+            legend.reverse()
+
             paths.append(path)
-        self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(paths)
+            legends.append(legend)
+        self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(paths, legends)
 
     def plotTabBar_currentChanged(self, index):
 
@@ -270,9 +281,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if 'data' in obj.keys() and 'timestamps' in obj.keys():
             temp_array = obj['data']
             n_cols = temp_array.shape[1]
-            for i in range(n_cols):
-                item = QTreeWidgetItem([str(i)])
-                parent.addChild(item)
+
+            # In yarp telemetry v0.4.0 the elements_names was saved.
+            if 'elements_names' in obj.keys():
+                for name in obj['elements_names']:
+                    item = QTreeWidgetItem([name])
+                    parent.addChild(item)
+            else:
+                for i in range(n_cols):
+                    item = QTreeWidgetItem(["Element " + str(i)])
+                    parent.addChild(item)
             return parent
         for key, value in obj.items():
             item = QTreeWidgetItem([key])

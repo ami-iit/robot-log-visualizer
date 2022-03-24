@@ -55,6 +55,11 @@ class SignalProvider(QThread):
                     self.timestamps = data[key]['timestamps']
                     self.end_time = data[key]['timestamps'][-1]
 
+                # In yarp telemetry v0.4.0 the elements_names was saved.
+                if 'elements_names' in value.keys():
+                    elements_names_ref = value['elements_names']
+                    data[key]['elements_names'] = ["".join(chr(c[0]) for c in value[ref])
+                                                   for ref in elements_names_ref[0]]
             else:
                 data[key] = self.__populate_data(file_object=value)
 

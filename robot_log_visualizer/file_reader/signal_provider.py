@@ -31,6 +31,7 @@ class SignalProvider(QThread):
         self.end_time = - math.inf
 
         self.joints_name = []
+        self.robot_name = ''
 
         self._current_time = 0
 
@@ -70,6 +71,9 @@ class SignalProvider(QThread):
             self.data = self.__populate_data(f)
             joint_ref = f["robot_logger_device"]["description_list"]
             self.joints_name = ["".join(chr(c[0]) for c in f[ref]) for ref in joint_ref[0]]
+            if 'yarp_robot_name' in f["robot_logger_device"].keys():
+                robot_name_ref = f["robot_logger_device"]["yarp_robot_name"]
+                self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
             self.index = 0
 
     def __len__(self):

@@ -180,7 +180,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.media_player.setPosition(index / self.ui.timeSlider.maximum() * self.media_player.duration())
         self.signal_provider.update_index(index)
         self.slider_pressed = False
-        self.logger.write_to_log("Dataset index set at " + str(index) + ".")
 
     def startButton_on_click(self):
         self.ui.startButton.setEnabled(False)
@@ -326,7 +325,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_filename)))
 
             # load the model
-            self.meshcat_provider.load_model(self.signal_provider.joints_name)
+            self.meshcat_provider.load_model(self.signal_provider.joints_name,
+                                             self.signal_provider.robot_name)
 
             self.meshcat_provider.state = PeriodicThreadState.running
 
@@ -334,6 +334,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             # write something in the log
             self.logger.write_to_log("File '" + file_name + "' opened.")
+            self.logger.write_to_log("Robot name: '" + self.signal_provider.robot_name + "'.")
 
     def open_about(self):
         self.about.show()

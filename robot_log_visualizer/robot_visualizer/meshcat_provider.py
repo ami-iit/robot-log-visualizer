@@ -36,8 +36,10 @@ class MeshcatProvider(QThread):
         locker = QMutexLocker(self.state_lock)
         self._state = new_state
 
-    def load_model(self, considered_joints):
-        self.meshcat_visualizer.load_model_from_file(model_path=icub_models.get_model_file("iCubGenova09"),
+    def load_model(self, considered_joints, model_name):
+        if not model_name in icub_models.get_robot_names():
+            model_name = "iCubGenova09"
+        self.meshcat_visualizer.load_model_from_file(model_path=icub_models.get_model_file(model_name),
                                                      considered_joints=considered_joints,
                                                      model_name='robot')
 

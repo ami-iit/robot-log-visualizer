@@ -6,7 +6,15 @@
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QUrl
 from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
-from PyQt5.QtWidgets import QFileDialog, QTreeWidgetItem, QToolButton, QDialog, QVBoxLayout, QLineEdit, QDialogButtonBox
+from PyQt5.QtWidgets import (
+    QFileDialog,
+    QTreeWidgetItem,
+    QToolButton,
+    QDialog,
+    QVBoxLayout,
+    QLineEdit,
+    QDialogButtonBox,
+)
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 
 from robot_log_visualizer.ui.plot_item import PlotItem
@@ -49,8 +57,8 @@ def build_plot_title_box_dialog():
     dlg.setLayout(la)
     return dlg, line_edit
 
-class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
+class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __init__(self, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
@@ -70,7 +78,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider = meshcat_provider
 
         self.tool_button = QToolButton()
-        self.tool_button.setText('+')
+        self.tool_button.setText("+")
         self.ui.tabPlotWidget.setCornerWidget(self.tool_button)
         self.tool_button.clicked.connect(self.toolButton_on_click)
 
@@ -89,7 +97,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
         self.ui.actionAbout.triggered.connect(self.open_about)
 
-        self.ui.meshcatView.setUrl(QUrl(meshcat_provider.meshcat_visualizer.viewer.url()))
+        self.ui.meshcatView.setUrl(
+            QUrl(meshcat_provider.meshcat_visualizer.viewer.url())
+        )
 
         self.ui.pauseButton.clicked.connect(self.pauseButton_on_click)
         self.ui.startButton.clicked.connect(self.startButton_on_click)
@@ -98,23 +108,30 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
 
         self.ui.variableTreeWidget.itemClicked.connect(self.variableTreeWidget_on_click)
-        self.ui.tabPlotWidget.tabCloseRequested.connect(self.plotTabCloseButton_on_click)
-        self.ui.tabPlotWidget.tabBarDoubleClicked.connect(self.plotTabBar_on_doubleClick)
+        self.ui.tabPlotWidget.tabCloseRequested.connect(
+            self.plotTabCloseButton_on_click
+        )
+        self.ui.tabPlotWidget.tabBarDoubleClicked.connect(
+            self.plotTabBar_on_doubleClick
+        )
         self.ui.tabPlotWidget.currentChanged.connect(self.plotTabBar_currentChanged)
 
-        self.pyconsole = PythonConsole(parent=self.ui.pythonWidget,
-                                       formats={
-                                           'keyword':    hl.format('#204a87', 'bold'),
-                                           'operator':   hl.format('#ce5c00'),
-                                           # 'brace':      hl.format('#eeeeec'),
-                                           'defclass':   hl.format('#000000', 'bold'),
-                                           'string':     hl.format('#8f5902'),
-                                           'string2':    hl.format('#8f5902'),
-                                           'comment':    hl.format('#8f5902', 'italic'),
-                                           'self':       hl.format('#000000', 'italic'),
-                                           'numbers':    hl.format('#0000cf'),
-                                           'inprompt':   hl.format('#8f5902', 'bold'),
-                                           'outprompt':  hl.format('#8f5902', 'bold'),})
+        self.pyconsole = PythonConsole(
+            parent=self.ui.pythonWidget,
+            formats={
+                "keyword": hl.format("#204a87", "bold"),
+                "operator": hl.format("#ce5c00"),
+                # 'brace':      hl.format('#eeeeec'),
+                "defclass": hl.format("#000000", "bold"),
+                "string": hl.format("#8f5902"),
+                "string2": hl.format("#8f5902"),
+                "comment": hl.format("#8f5902", "italic"),
+                "self": hl.format("#000000", "italic"),
+                "numbers": hl.format("#0000cf"),
+                "inprompt": hl.format("#8f5902", "bold"),
+                "outprompt": hl.format("#8f5902", "bold"),
+            },
+        )
         self.pyconsole.edit.setStyleSheet("font-size: 12px;")
         self.ui.pythonWidgetLayout.addWidget(self.pyconsole)
         self.pyconsole.eval_in_thread()
@@ -143,22 +160,32 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) - 1
                 self.signal_provider.update_index(new_index)
-                if (self.media_loaded):
-                    self.media_player.setPosition(new_index / self.ui.timeSlider.maximum() * self.media_player.duration())
+                if self.media_loaded:
+                    self.media_player.setPosition(
+                        new_index
+                        / self.ui.timeSlider.maximum()
+                        * self.media_player.duration()
+                    )
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
             elif event.key() == Qt.Key_F:
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) + 1
                 self.signal_provider.update_index(new_index)
-                if (self.media_loaded):
-                    self.media_player.setPosition(new_index / self.ui.timeSlider.maximum() * self.media_player.duration())
+                if self.media_loaded:
+                    self.media_player.setPosition(
+                        new_index
+                        / self.ui.timeSlider.maximum()
+                        * self.media_player.duration()
+                    )
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
 
     def toolButton_on_click(self):
-        self.plot_items.append(PlotItem(signal_provider=self.signal_provider, period=self.animation_period))
-        self.ui.tabPlotWidget.addTab(self.plot_items[-1], 'Plot')
+        self.plot_items.append(
+            PlotItem(signal_provider=self.signal_provider, period=self.animation_period)
+        )
+        self.ui.tabPlotWidget.addTab(self.plot_items[-1], "Plot")
 
         if self.ui.tabPlotWidget.count() == 1:
             self.ui.tabPlotWidget.setTabsClosable(False)
@@ -170,34 +197,38 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def timeSlider_on_sliderMoved(self):
         index = int(self.ui.timeSlider.value())
-        if (self.media_loaded):
-            self.media_player.setPosition(index / self.ui.timeSlider.maximum() * self.media_player.duration())
+        if self.media_loaded:
+            self.media_player.setPosition(
+                index / self.ui.timeSlider.maximum() * self.media_player.duration()
+            )
         self.signal_provider.update_index(index)
 
     def timeSlider_on_release(self):
         index = int(self.ui.timeSlider.value())
-        if (self.media_loaded):
-            self.media_player.setPosition(index / self.ui.timeSlider.maximum() * self.media_player.duration())
+        if self.media_loaded:
+            self.media_player.setPosition(
+                index / self.ui.timeSlider.maximum() * self.media_player.duration()
+            )
         self.signal_provider.update_index(index)
         self.slider_pressed = False
 
     def startButton_on_click(self):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
-        if (self.media_loaded):
+        if self.media_loaded:
             self.media_player.play()
         self.signal_provider.state = PeriodicThreadState.running
-        #self.meshcat_provider.state = PeriodicThreadState.running
+        # self.meshcat_provider.state = PeriodicThreadState.running
 
         self.logger.write_to_log("Dataset started.")
 
     def pauseButton_on_click(self):
         self.ui.pauseButton.setEnabled(False)
         self.ui.startButton.setEnabled(True)
-        if (self.media_loaded):
+        if self.media_loaded:
             self.media_player.pause()
         self.signal_provider.state = PeriodicThreadState.pause
-        #self.meshcat_provider.state = PeriodicThreadState.pause
+        # self.meshcat_provider.state = PeriodicThreadState.pause
 
         self.logger.write_to_log("Dataset paused.")
 
@@ -237,14 +268,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
-        self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(paths, legends)
+        self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
+            paths, legends
+        )
 
     def plotTabBar_currentChanged(self, index):
 
-        #clear the selection to prepare a new one
+        # clear the selection to prepare a new one
         self.ui.variableTreeWidget.clearSelection()
         for active_path_str in self.plot_items[index].canvas.active_paths.keys():
-            path = active_path_str.split('/')
+            path = active_path_str.split("/")
             item = self.ui.variableTreeWidget.topLevelItem(0)
             for subpath in path[1:]:
                 for child_id in range(item.childCount()):
@@ -253,12 +286,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                         break
             item.setSelected(True)
 
-
     @pyqtSlot()
     def update_slider(self):
         if not self.slider_pressed:
             self.ui.timeSlider.setValue(self.signal_provider.index)
-
 
     def closeEvent(self, event):
 
@@ -277,13 +308,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
             return parent
-        if 'data' in obj.keys() and 'timestamps' in obj.keys():
-            temp_array = obj['data']
+        if "data" in obj.keys() and "timestamps" in obj.keys():
+            temp_array = obj["data"]
             n_cols = temp_array.shape[1]
 
             # In yarp telemetry v0.4.0 the elements_names was saved.
-            if 'elements_names' in obj.keys():
-                for name in obj['elements_names']:
+            if "elements_names" in obj.keys():
+                for name in obj["elements_names"]:
                     item = QTreeWidgetItem([name])
                     parent.addChild(item)
             else:
@@ -299,7 +330,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         return parent
 
     def open_mat_file(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open a mat file", ".", filter='*.mat')
+        file_name, _ = QFileDialog.getOpenFileName(
+            self, "Open a mat file", ".", filter="*.mat"
+        )
         if file_name:
             self.signal_provider.open_mat_file(file_name)
             self.signal_size = len(self.signal_provider)
@@ -308,7 +341,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             root = list(self.signal_provider.data.keys())[0]
             root_item = QTreeWidgetItem([root])
             root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-            items = self.__populate_variable_tree_widget(self.signal_provider.data[root], root_item)
+            items = self.__populate_variable_tree_widget(
+                self.signal_provider.data[root], root_item
+            )
             self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
             self.pyconsole.push_local_ns("data", self.signal_provider.data)
@@ -317,16 +352,19 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.startButton.setEnabled(True)
             self.ui.timeSlider.setEnabled(True)
 
-            (prefix, sep, suffix) = file_name.rpartition('.')
-            video_filename = prefix + '_webcam.mp4'
+            (prefix, sep, suffix) = file_name.rpartition(".")
+            video_filename = prefix + "_webcam.mp4"
 
             self.media_loaded = os.path.isfile(video_filename)
-            if (self.media_loaded):
-                self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(video_filename)))
+            if self.media_loaded:
+                self.media_player.setMedia(
+                    QMediaContent(QUrl.fromLocalFile(video_filename))
+                )
 
             # load the model
-            self.meshcat_provider.load_model(self.signal_provider.joints_name,
-                                             self.signal_provider.robot_name)
+            self.meshcat_provider.load_model(
+                self.signal_provider.joints_name, self.signal_provider.robot_name
+            )
 
             self.meshcat_provider.state = PeriodicThreadState.running
 
@@ -334,7 +372,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             # write something in the log
             self.logger.write_to_log("File '" + file_name + "' opened.")
-            self.logger.write_to_log("Robot name: '" + self.signal_provider.robot_name + "'.")
+            self.logger.write_to_log(
+                "Robot name: '" + self.signal_provider.robot_name + "'."
+            )
 
     def open_about(self):
         self.about.show()
@@ -388,7 +428,7 @@ class Logger:
         scroll_bar.setValue(scroll_bar.maximum())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # construct a QApplication
     app = QtWidgets.QApplication(sys.argv)
 

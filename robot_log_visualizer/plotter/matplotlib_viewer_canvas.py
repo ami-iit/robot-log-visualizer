@@ -38,13 +38,17 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.axes.grid(True)
 
         # start the vertical line animation
-        self.vertical_line, = self.axes.plot([], [], '-', lw=1, c='k')
+        (self.vertical_line,) = self.axes.plot([], [], "-", lw=1, c="k")
 
         self.periond_in_ms = int(period * 1000)
 
-        self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
-                                                          init_func=self.init_vertical_line,
-                                                          interval=self.periond_in_ms, blit=True)
+        self.vertical_line_anim = animation.FuncAnimation(
+            self.fig,
+            self.update_vertical_line,
+            init_func=self.init_vertical_line,
+            interval=self.periond_in_ms,
+            blit=True,
+        )
 
         # active paths
         self.active_paths = {}
@@ -64,23 +68,25 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def update_plots(self, paths, legends):
 
         for path, legend in zip(paths, legends):
-            path_string = '/'.join(path)
-            legend_string = '/'.join(legend[1:])
+            path_string = "/".join(path)
+            legend_string = "/".join(legend[1:])
 
             if path_string not in self.active_paths.keys():
 
                 data = self.signal_provider.data
                 for key in path[:-1]:
                     data = data[key]
-                datapoints = data['data'][:,int(path[-1])]
-                timestamps = data['timestamps'] - self.signal_provider.initial_time
+                datapoints = data["data"][:, int(path[-1])]
+                timestamps = data["timestamps"] - self.signal_provider.initial_time
 
-                self.active_paths[path_string],  = self.axes.plot(timestamps, datapoints, label=legend_string)
+                (self.active_paths[path_string],) = self.axes.plot(
+                    timestamps, datapoints, label=legend_string
+                )
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():
 
-            path = active_path.split('/')
+            path = active_path.split("/")
 
             if path not in paths:
                 paths_to_be_canceled.append(active_path)
@@ -89,16 +95,21 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        self.axes.set_xlim(0, self.signal_provider.end_time - self.signal_provider.initial_time)
+        self.axes.set_xlim(
+            0, self.signal_provider.end_time - self.signal_provider.initial_time
+        )
 
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized
         self.vertical_line_anim._stop()
         self.axes.legend()
-        self.vertical_line_anim = animation.FuncAnimation(self.fig, self.update_vertical_line,
-                                                          init_func=self.init_vertical_line,
-                                                          interval=self.periond_in_ms, blit=True)
-
+        self.vertical_line_anim = animation.FuncAnimation(
+            self.fig,
+            self.update_vertical_line,
+            init_func=self.init_vertical_line,
+            interval=self.periond_in_ms,
+            blit=True,
+        )
 
     def update_index(self, index):
         self.index = index
@@ -116,4 +127,3 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         self.vertical_line.set_data([current_time, current_time], self.axes.get_ylim())
         return self.vertical_line, *(self.active_paths.values())
-

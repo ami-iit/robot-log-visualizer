@@ -9,6 +9,7 @@ import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
+
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
@@ -28,10 +29,10 @@ class SignalProvider(QThread):
         self.timestamps = np.array([])
 
         self.initial_time = math.inf
-        self.end_time = - math.inf
+        self.end_time = -math.inf
 
         self.joints_name = []
-        self.robot_name = ''
+        self.robot_name = ""
 
         self._current_time = 0
 
@@ -40,38 +41,42 @@ class SignalProvider(QThread):
         for key, value in file_object.items():
             if not isinstance(value, h5py._hl.group.Group):
                 continue
-            if key == '#refs#':
+            if key == "#refs#":
                 continue
-            if 'data' in value.keys():
+            if "data" in value.keys():
                 data[key] = {}
-                data[key]['data'] = np.squeeze(np.array(value['data']))
-                data[key]['timestamps'] = np.array(value['timestamps'])
+                data[key]["data"] = np.squeeze(np.array(value["data"]))
+                data[key]["timestamps"] = np.array(value["timestamps"])
 
                 # if the initial or end time has been updated we can also update the entire timestamps dataset
-                if data[key]['timestamps'][0] < self.initial_time:
-                    self.timestamps = data[key]['timestamps']
-                    self.initial_time = data[key]['timestamps'][0]
+                if data[key]["timestamps"][0] < self.initial_time:
+                    self.timestamps = data[key]["timestamps"]
+                    self.initial_time = data[key]["timestamps"][0]
 
-                if data[key]['timestamps'][-1] > self.end_time:
-                    self.timestamps = data[key]['timestamps']
-                    self.end_time = data[key]['timestamps'][-1]
+                if data[key]["timestamps"][-1] > self.end_time:
+                    self.timestamps = data[key]["timestamps"]
+                    self.end_time = data[key]["timestamps"][-1]
 
                 # In yarp telemetry v0.4.0 the elements_names was saved.
-                if 'elements_names' in value.keys():
-                    elements_names_ref = value['elements_names']
-                    data[key]['elements_names'] = ["".join(chr(c[0]) for c in value[ref])
-                                                   for ref in elements_names_ref[0]]
+                if "elements_names" in value.keys():
+                    elements_names_ref = value["elements_names"]
+                    data[key]["elements_names"] = [
+                        "".join(chr(c[0]) for c in value[ref])
+                        for ref in elements_names_ref[0]
+                    ]
             else:
                 data[key] = self.__populate_data(file_object=value)
 
         return data
 
     def open_mat_file(self, file_name: str):
-        with h5py.File(file_name, 'r') as f:
+        with h5py.File(file_name, "r") as f:
             self.data = self.__populate_data(f)
             joint_ref = f["robot_logger_device"]["description_list"]
-            self.joints_name = ["".join(chr(c[0]) for c in f[ref]) for ref in joint_ref[0]]
-            if 'yarp_robot_name' in f["robot_logger_device"].keys():
+            self.joints_name = [
+                "".join(chr(c[0]) for c in f[ref]) for ref in joint_ref[0]
+            ]
+            if "yarp_robot_name" in f["robot_logger_device"].keys():
                 robot_name_ref = f["robot_logger_device"]["yarp_robot_name"]
                 self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
             self.index = 0

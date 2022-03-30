@@ -39,9 +39,11 @@ class MeshcatProvider(QThread):
     def load_model(self, considered_joints, model_name):
         if not model_name in icub_models.get_robot_names():
             model_name = "iCubGenova09"
-        self.meshcat_visualizer.load_model_from_file(model_path=icub_models.get_model_file(model_name),
-                                                     considered_joints=considered_joints,
-                                                     model_name='robot')
+        self.meshcat_visualizer.load_model_from_file(
+            model_path=icub_models.get_model_file(model_name),
+            considered_joints=considered_joints,
+            model_name="robot",
+        )
 
     def run(self):
         base_rotation = np.eye(3)
@@ -53,11 +55,16 @@ class MeshcatProvider(QThread):
             if self.state == PeriodicThreadState.running:
 
                 # These are the robot measured joint positions in radians
-                joints = self._signal_provider.data['robot_logger_device']['joints_state']['positions']['data']
+                joints = self._signal_provider.data["robot_logger_device"][
+                    "joints_state"
+                ]["positions"]["data"]
 
-                self.meshcat_visualizer.set_multy_body_system_state(base_position, base_rotation,
-                                                                    joint_value=joints[self._signal_provider.index, :],
-                                                                    model_name="robot")
+                self.meshcat_visualizer.set_multy_body_system_state(
+                    base_position,
+                    base_rotation,
+                    joint_value=joints[self._signal_provider.index, :],
+                    model_name="robot",
+                )
 
             sleep_time = self._period - (time.time() - start)
             if sleep_time > 0:

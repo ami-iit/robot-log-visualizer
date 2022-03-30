@@ -9,11 +9,12 @@ from robot_log_visualizer.plotter.matplotlib_viewer_canvas import MatplotlibView
 
 
 class PlotItem(QFrame):
-
     def __init__(self, signal_provider, period):
         super().__init__(None)
         self.ui = Ui_PlotTab()
         self.ui.setupUi(self)
 
-        self.canvas = MatplotlibViewerCanvas(parent=self, period=period, signal_provider=signal_provider)
+        self.canvas = MatplotlibViewerCanvas(
+            parent=self, period=period, signal_provider=signal_provider
+        )
         self.ui.plotLayout.addWidget(self.canvas)

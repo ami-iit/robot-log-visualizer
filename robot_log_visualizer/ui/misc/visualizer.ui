@@ -13,10 +13,6 @@
   <property name="windowTitle">
    <string>Robot Log Visualizer</string>
   </property>
-  <property name="windowIcon">
-   <iconset>
-    <normaloff>icon.png</normaloff>icon.png</iconset>
-  </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">

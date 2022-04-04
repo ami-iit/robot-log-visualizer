@@ -15,7 +15,7 @@ script:
   # Install application dependencies
   - mkdir -p AppDir/usr/share/icons/hicolor/1024x1024/apps/
   - cp robot_log_visualizer/ui/misc/icon.png AppDir/usr/share/icons/hicolor/1024x1024/apps/robot-log-visualizer-icon.png
-  - python3 -m pip install --system --ignore-installed --prefix=/usr --root=AppDir idyntree meshcat h5py icub-models pyngrok pyqtconsole
+  - python3 -m pip install --system --ignore-installed --prefix=/usr --root=AppDir icub-models pyngrok pyqtconsole idyntree meshcat matplotlib h5py
 
 
 AppDir:
@@ -45,28 +45,26 @@ AppDir:
       - python3-pyqt5.qtwebengine
       - python3-pyqt5.qtmultimedia
       - python3-qtpy
-      - python3-h5py
-      - python3-u-msgpack
-      - python3-tornado
-      - python3-zmq
-      - python3-ipython
-      - libqt5multimedia5-plugins
-      - libqt5gui5
-      - yaru-theme-icon
-      - libffi7
-      - libqt5multimedia5
-      - libqt5webenginewidgets5
-      - libqt5multimediawidgets5
-      - libassimp5
+      # - python3-h5py
+      # - python3-tornado
+      # - python3-zmq
+      # - python3-ipython
+      # - libqt5multimedia5-plugins
+      # - libqt5gui5
+      # - yaru-theme-icon
+      # - libqt5multimedia5
+      # - libqt5webenginewidgets5
+      # - libqt5multimediawidgets5
+      # - build-essential
+      # - libeigen3-dev
+      # - swig
+      # - libxml2-dev
+      - libassimp-dev
+      # - openmpi-bin
+
 
   files:
-    include:
-      - /usr/lib/libQt5Widgets.so.5
-      - /usr/lib/libQt5Qml.so.5
-      - /usr/lib/libz.so.1
-      - /usr/lib/libQt5Gui.so.5
     exclude:
-      - usr/lib/x86_64-linux-gnu/gconv
       - usr/share/man[0-9]
       - usr/share/man
       - usr/share/doc/*/README.*

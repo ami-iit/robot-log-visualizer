@@ -12,7 +12,7 @@ import os
 import idyntree.bindings as idyn
 import numpy as np
 import warnings
-
+from pathlib import Path
 
 class MeshcatVisualizer:
     """
@@ -350,9 +350,11 @@ class MeshcatVisualizer:
         self, model_path: str, considered_joints=None, model_name="iDynTree", color=None
     ):
 
+        p = Path(model_path)
+        path_str = str(p.absolute())
         model_loader = idyn.ModelLoader()
         if considered_joints is None:
-            ok = model_loader.loadModelFromFile(model_path)
+            ok = model_loader.loadModelFromFile(path_str)
 
         else:
             considered_joints_idyn = idyn.StringVector()
@@ -360,7 +362,7 @@ class MeshcatVisualizer:
                 considered_joints_idyn.push_back(joint)
 
             ok = model_loader.loadReducedModelFromFile(
-                model_path, considered_joints_idyn
+                path_str, considered_joints_idyn
             )
 
         if not ok:

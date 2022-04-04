@@ -15,7 +15,7 @@ script:
   # Install application dependencies
   - mkdir -p AppDir/usr/share/icons/hicolor/1024x1024/apps/
   - cp robot_log_visualizer/ui/misc/icon.png AppDir/usr/share/icons/hicolor/1024x1024/apps/robot-log-visualizer-icon.png
-  - python3 -m pip install --system --ignore-installed --prefix=/usr --root=AppDir icub-models pyngrok pyqtconsole idyntree meshcat matplotlib h5py
+  - python3 -m pip install --ignore-installed --prefix=/usr --root=AppDir icub-models pyngrok pyqtconsole idyntree meshcat matplotlib h5py
 
 
 AppDir:

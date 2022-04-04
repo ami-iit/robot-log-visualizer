@@ -93,6 +93,6 @@ AppDir:
       use_host_x: true
 
 AppImage:
-  update-information: !ENV ${UPDATE_INFO}
+  update-information: 'gh-releases-zsync|AppImageCrafters|com.robot-log-visualizer.ami|latest|python-appimage-*x86_64.AppImage.zsync'
   sign-key: None
   arch: x86_64

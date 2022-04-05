@@ -70,6 +70,9 @@ AppDir:
       # Disable webengine sandboxing
       QTWEBENGINE_DISABLE_SANDBOX: 1
 
+      # this is required for the models
+      ROS_PACKAGE_PATH: '${APPDIR}/usr/share'
+
   test:
     fedora:
       image: appimagecrafters/tests-env:fedora-30

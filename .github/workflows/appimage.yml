@@ -60,10 +60,11 @@ jobs:
           name: AppImage
           path: AppImage
 
-      - name: Publish appimage
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish appimage to release asset
+        uses: svenstaro/upload-release-action@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: AppImage/*
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: AppImage/*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true

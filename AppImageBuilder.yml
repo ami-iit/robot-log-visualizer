@@ -71,7 +71,7 @@ AppDir:
       QTWEBENGINE_DISABLE_SANDBOX: 1
 
       # this is required for the models
-      ROS_PACKAGE_PATH: ${APPDIR}/usr/share
+      ROS_PACKAGE_PATH: '${APPDIR}/usr/share'
 
   test:
     fedora:

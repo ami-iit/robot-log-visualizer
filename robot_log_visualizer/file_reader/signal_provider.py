@@ -78,7 +78,10 @@ class SignalProvider(QThread):
             ]
             if "yarp_robot_name" in f["robot_logger_device"].keys():
                 robot_name_ref = f["robot_logger_device"]["yarp_robot_name"]
-                self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
+                try:
+                    self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
+                except:
+                    pass
             self.index = 0
 
     def __len__(self):

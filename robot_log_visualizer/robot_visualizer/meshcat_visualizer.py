@@ -309,6 +309,12 @@ class MeshcatVisualizer:
                     self.__apply_transform(
                         self.link_pos[model_name](link_index), solid_shape, viewer_name
                     )
+                # is a primitive shape
+                else:
+                    viewer_name = model_name + "/" + link_name + "/geometry" + str(geom)
+                    self.__apply_transform_to_primitive_geomety(
+                        self.link_pos[model_name](link_index), solid_shape, viewer_name
+                    )
 
     def open(self):
         self.viewer.open()

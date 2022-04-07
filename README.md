@@ -5,13 +5,17 @@
 
 ## 📝 Install
 
+Please follow one of the following method to use the software
+
+### 🐍 Install from `pip`
+
 Install `python3`, if not installed (in **Ubuntu 20.04**):
 
 ```console
 sudo apt install python3.8 python3-virtualenv swig
 ```
 
-Clone the repo and install the library:
+Install the library from `pip`:
 
 ```console
 pip install robot-log-visualizer
@@ -22,6 +26,20 @@ preferably in a [virtual environment](https://docs.python.org/3/library/venv.htm
 ```console
 python3 -m venv visualizer-env
 . visualizer-env/bin/activate
+```
+
+### 📦 Use the `AppImage`
+If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/). 
+Please run the following command on your terminal. Remeber to change the `version` number in the following command 
+```console
+version=0.1.3
+wget https://github.com/ami-iit/robot-log-visualizer/releases/download/v${version}/robot-log-visualizer-${version}-x86_64.AppImage
+chmod a+x robot-log-visualizer-${version}-x86_64.AppImage
+```
+
+Run the application
+```console
+./robot-log-visualizer-${version}-x86_64.AppImage
 ```
 
 ### 👷 Install latest version (not recommended)

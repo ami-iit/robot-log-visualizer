@@ -190,13 +190,22 @@ class MeshcatVisualizer:
                     warnings.warn(msg, category=UserWarning, stacklevel=2)
                     continue
 
-                viewer_name = (
-                    model_name
-                    + "/"
-                    + link_name
-                    + "/"
-                    + solid_shape.asExternalMesh().getName()
-                )
+                if is_mesh:
+                    viewer_name = (
+                        model_name
+                        + "/"
+                        + link_name
+                        + "/"
+                        + solid_shape.asExternalMesh().getName()
+                    )
+                else:
+                    viewer_name = (
+                        model_name
+                        + "/"
+                        + link_name
+                        + "/geometry"
+                        + str(geom)
+                    )
 
                 if isinstance(obj, meshcat.geometry.Object):
                     self.viewer[viewer_name].set_object(obj)

@@ -29,8 +29,8 @@ python3 -m venv visualizer-env
 ```
 
 ### 📦 Use the `AppImage`
-If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/). 
-Please run the following command on your terminal. Remeber to change the `version` number in the following command 
+If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/).
+Please run the following command on your terminal. Remeber to change the `version` number in the following command
 ```console
 version=0.1.3
 wget https://github.com/ami-iit/robot-log-visualizer/releases/download/v${version}/robot-log-visualizer-${version}-x86_64.AppImage

@@ -14,6 +14,7 @@ import numpy as np
 import warnings
 from pathlib import Path
 
+
 class MeshcatVisualizer:
     """
     A simple wrapper to the meshcat visualizer. The MeshcatVisualizer class is highly inspired by the Pinocchio version
@@ -121,6 +122,19 @@ class MeshcatVisualizer:
 
         return obj
 
+    def __apply_transform_to_primitive_geomety(
+        self, world_H_frame, solid_shape, viewer_name
+    ):
+        world_H_geometry = (
+            (world_H_frame * solid_shape.getLink_H_geometry())
+            .asHomogeneousTransform()
+            .toNumPy()
+        )
+        world_H_geometry_scaled = np.array(world_H_geometry)
+
+        # Update viewer configuration.
+        self.viewer[viewer_name].set_transform(world_H_geometry_scaled)
+
     def __apply_transform(self, world_H_frame, solid_shape, viewer_name):
         world_H_geometry = (
             (world_H_frame * solid_shape.getLink_H_geometry())
@@ -172,14 +186,18 @@ class MeshcatVisualizer:
             world_H_frame = self.link_pos[model_name](link_index)
             link_name = self.model[model_name].getLinkName(link_index)
 
-            is_mesh = False
             for geom in range(0, len(link_solid_shapes[link_index])):
                 solid_shape = model_geometry.getLinkSolidShapes()[link_index][geom]
+
+                is_mesh = False
+                is_primitive_geomety = False
+
                 if self.__is_mesh(solid_shape):
                     obj = self.__load_mesh(solid_shape)
                     is_mesh = True
                 else:
                     obj = self.__load_primitive_geometry(solid_shape)
+                    is_primitive_geomety = True
 
                 if obj is None:
                     msg = (
@@ -199,13 +217,7 @@ class MeshcatVisualizer:
                         + solid_shape.asExternalMesh().getName()
                     )
                 else:
-                    viewer_name = (
-                        model_name
-                        + "/"
-                        + link_name
-                        + "/geometry"
-                        + str(geom)
-                    )
+                    viewer_name = model_name + "/" + link_name + "/geometry" + str(geom)
 
                 if isinstance(obj, meshcat.geometry.Object):
                     self.viewer[viewer_name].set_object(obj)
@@ -232,6 +244,10 @@ class MeshcatVisualizer:
 
                     if is_mesh:
                         self.__apply_transform(world_H_frame, solid_shape, viewer_name)
+                    elif is_primitive_geomety:
+                        self.__apply_transform_to_primitive_geomety(
+                            world_H_frame, solid_shape, viewer_name
+                        )
 
     def set_multy_body_system_state(
         self, base_position, base_rotation, joint_value, model_name="iDynTree"
@@ -370,9 +386,7 @@ class MeshcatVisualizer:
             for joint in considered_joints:
                 considered_joints_idyn.push_back(joint)
 
-            ok = model_loader.loadReducedModelFromFile(
-                path_str, considered_joints_idyn
-            )
+            ok = model_loader.loadReducedModelFromFile(path_str, considered_joints_idyn)
 
         if not ok:
             msg = (

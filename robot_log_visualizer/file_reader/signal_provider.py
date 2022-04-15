@@ -34,6 +34,8 @@ class SignalProvider(QThread):
         self.joints_name = []
         self.robot_name = ""
 
+        self.root_name = "robot_logger_device"
+
         self._current_time = 0
 
     def __populate_data(self, file_object):
@@ -70,14 +72,22 @@ class SignalProvider(QThread):
         return data
 
     def open_mat_file(self, file_name: str):
-        with h5py.File(file_name, "r") as f:
-            self.data = self.__populate_data(f)
-            joint_ref = f["robot_logger_device"]["description_list"]
+        with h5py.File(file_name, "r") as file:
+            self.data = self.__populate_data(file)
+
+            for name in file.keys():
+                if "description_list" in file[name].keys():
+                    self.root_name = name
+                    break
+
+            root_variable = file.get(self.root_name)
+
+            joint_ref = root_variable["description_list"]
             self.joints_name = [
-                "".join(chr(c[0]) for c in f[ref]) for ref in joint_ref[0]
+                "".join(chr(c[0]) for c in file[ref]) for ref in joint_ref[0]
             ]
-            if "yarp_robot_name" in f["robot_logger_device"].keys():
-                robot_name_ref = f["robot_logger_device"]["yarp_robot_name"]
+            if "yarp_robot_name" in root_variable.keys():
+                robot_name_ref = root_variable["yarp_robot_name"]
                 try:
                     self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
                 except:

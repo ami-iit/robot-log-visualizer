@@ -55,7 +55,7 @@ class MeshcatProvider(QThread):
             if self.state == PeriodicThreadState.running:
 
                 # These are the robot measured joint positions in radians
-                joints = self._signal_provider.data["robot_logger_device"][
+                joints = self._signal_provider.data[self._signal_provider.root_name][
                     "joints_state"
                 ]["positions"]["data"]
 

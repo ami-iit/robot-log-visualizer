@@ -7,7 +7,7 @@
 
 Please follow one of the following method to use the software
 
-### 🐍 Install from `pip`
+### 🐍 Install from `pip` with apt python
 
 Install `python3`, if not installed (in **Ubuntu 20.04**):
 
@@ -15,18 +15,18 @@ Install `python3`, if not installed (in **Ubuntu 20.04**):
 sudo apt install python3.8 python3-virtualenv swig
 ```
 
-Install the library from `pip`:
+Create a [virtual environment](https://docs.python.org/3/library/venv.html#venv-def) and activate it. For example:
+```console
+python3 -m venv visualizer-env
+. visualizer-env/bin/activate
+```
+
+Inside the virtual environment, install the library from `pip`:
 
 ```console
 pip install robot-log-visualizer
 ```
 
-preferably in a [virtual environment](https://docs.python.org/3/library/venv.html#venv-def). For example:
-
-```console
-python3 -m venv visualizer-env
-. visualizer-env/bin/activate
-```
 
 ### 📦 Use the `AppImage`
 If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/).

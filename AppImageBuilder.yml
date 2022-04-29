@@ -8,13 +8,11 @@ script:
   - cp robot_log_visualizer  AppDir/usr/src -r
   - mv AppDir/usr/src/robot_log_visualizer/__main__.py AppDir/usr/src/robot-log-visualizer.py
 
-  # Force Yaru
-  - sed -i '1s/^/QtGui.QIcon.setThemeName("Yaru")\n/' AppDir/usr/src/robot-log-visualizer.py
-  - sed -i '1s/^/from PyQt5 import QtGui\n/' AppDir/usr/src/robot-log-visualizer.py
-
-  # Install application dependencies
+  # Install application logo
   - mkdir -p AppDir/usr/share/icons/hicolor/1024x1024/apps/
   - cp robot_log_visualizer/ui/misc/icon.png AppDir/usr/share/icons/hicolor/1024x1024/apps/robot-log-visualizer-icon.png
+
+  # Install application dependencies
   - python3 -m pip install --ignore-installed --prefix=/usr --root=AppDir icub-models pyngrok pyqtconsole idyntree meshcat matplotlib h5py
 
 
@@ -47,7 +45,6 @@ AppDir:
       - python3-qtpy
       - libassimp-dev
       - libqt5multimedia5-plugins
-      - yaru-theme-icon
 
   files:
     exclude:

@@ -59,6 +59,17 @@ def build_plot_title_box_dialog():
     return dlg, line_edit
 
 
+def get_icon(icon_name):
+
+    icon = QtGui.QIcon()
+    icon.addPixmap(
+        QtGui.QPixmap(str(pathlib.Path(__file__).parent / "misc" / icon_name)),
+        QtGui.QIcon.Normal,
+        QtGui.QIcon.Off,
+    )
+    return icon
+
+
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __init__(self, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor
@@ -70,13 +81,18 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        icon = QtGui.QIcon()
-        icon.addPixmap(
-            QtGui.QPixmap(str(pathlib.Path(__file__).parent / "misc" / "icon.png")),
-            QtGui.QIcon.Normal,
-            QtGui.QIcon.Off,
-        )
-        self.setWindowIcon(icon)
+        # Set all the icons
+        self.ui.startButton.setIcon(get_icon("play-outline.svg"))
+        self.ui.pauseButton.setIcon(get_icon("pause-outline.svg"))
+        self.ui.pauseButton.setIcon(get_icon("pause-outline.svg"))
+        self.ui.tabWidget_2.setTabIcon(0, get_icon("game-controller-outline.svg"))
+        self.ui.tabWidget_2.setTabIcon(1, get_icon("videocam-outline.svg"))
+        self.ui.tabWidget.setTabIcon(0, get_icon("document-text-outline.svg"))
+        self.ui.tabWidget.setTabIcon(1, get_icon("terminal-outline.svg"))
+        self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
+        self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
+        self.ui.actionOpen.setIcon(get_icon("folder-open-outline.svg"))
+        self.setWindowIcon(get_icon("icon.png"))
 
         self.about = About()
 

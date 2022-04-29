@@ -230,7 +230,7 @@ class MeshcatVisualizer:
                         mesh_color = color
 
                     material.color = (
-                        int(mesh_color[0] * 255) * 256**2
+                        int(mesh_color[0] * 255) * 256 ** 2
                         + int(mesh_color[1] * 255) * 256
                         + int(mesh_color[2] * 255)
                     )
@@ -354,7 +354,7 @@ class MeshcatVisualizer:
                 mesh_color = color
 
             material.color = (
-                int(mesh_color[0] * 255) * 256**2
+                int(mesh_color[0] * 255) * 256 ** 2
                 + int(mesh_color[1] * 255) * 256
                 + int(mesh_color[2] * 255)
             )

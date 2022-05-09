@@ -335,7 +335,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             return parent
         if "data" in obj.keys() and "timestamps" in obj.keys():
             temp_array = obj["data"]
-            n_cols = temp_array.shape[1]
+            try:
+                n_cols = temp_array.shape[1]
+            except IndexError:
+                # This happens in the case the variable is a scalar.
+                n_cols = 1
 
             # In yarp telemetry v0.4.0 the elements_names was saved.
             if "elements_names" in obj.keys():

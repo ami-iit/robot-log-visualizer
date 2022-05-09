@@ -76,7 +76,12 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 data = self.signal_provider.data
                 for key in path[:-1]:
                     data = data[key]
-                datapoints = data["data"][:, int(path[-1])]
+                try:
+                    datapoints = data["data"][:, int(path[-1])]
+                except IndexError:
+                    # This happens in the case the variable is a scalar.
+                    datapoints = data["data"][:]
+
                 timestamps = data["timestamps"] - self.signal_provider.initial_time
 
                 (self.active_paths[path_string],) = self.axes.plot(

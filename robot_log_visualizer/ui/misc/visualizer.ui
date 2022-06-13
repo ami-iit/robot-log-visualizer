@@ -49,6 +49,28 @@
         <property name="topMargin">
          <number>9</number>
         </property>
+        <item row="1" column="0" colspan="2">
+         <widget class="QSlider" name="timeSlider">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="pageStep">
+           <number>1</number>
+          </property>
+          <property name="tracking">
+           <bool>true</bool>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
         <item row="1" column="2">
          <widget class="QPushButton" name="startButton">
           <property name="enabled">
@@ -69,28 +91,6 @@
           <property name="icon">
            <iconset theme="media-playback-start">
             <normaloff>.</normaloff>.</iconset>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0" colspan="2">
-         <widget class="QSlider" name="timeSlider">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="pageStep">
-           <number>1</number>
-          </property>
-          <property name="tracking">
-           <bool>true</bool>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
           </property>
          </widget>
         </item>
@@ -197,7 +197,7 @@
             <bool>false</bool>
            </property>
           </widget>
-          <widget class="QTabWidget" name="tabWidget_2">
+          <widget class="QTabWidget" name="meshcatAndVideoTab">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
              <horstretch>2</horstretch>
@@ -231,20 +231,6 @@
                 </sizepolicy>
                </property>
               </widget>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QWidget" name="videoTab">
-            <attribute name="icon">
-             <iconset theme="camera-web">
-              <normaloff>.</normaloff>.</iconset>
-            </attribute>
-            <attribute name="title">
-             <string/>
-            </attribute>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
-             <item>
-              <widget class="QVideoWidget" name="webcamView" native="true"/>
              </item>
             </layout>
            </widget>
@@ -434,12 +420,6 @@
    <class>QWebEngineView</class>
    <extends>QWidget</extends>
    <header>PyQt5.QtWebEngineWidgets</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>QVideoWidget</class>
-   <extends>QWidget</extends>
-   <header>PyQt5.QtMultimediaWidgets</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

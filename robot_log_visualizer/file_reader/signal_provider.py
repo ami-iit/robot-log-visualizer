@@ -100,12 +100,12 @@ class SignalProvider(QThread):
 
                 # if the initial or end time has been updated we can also update the entire timestamps dataset
                 if data[key]["timestamps"][0] < self.initial_time:
-                    self.timestamps = data[key]["timestamps"]
-                    self.initial_time = data[key]["timestamps"][0]
+                    self.timestamps = np.squeeze(data[key]["timestamps"])
+                    self.initial_time = self.timestamps[0]
 
                 if data[key]["timestamps"][-1] > self.end_time:
-                    self.timestamps = data[key]["timestamps"]
-                    self.end_time = data[key]["timestamps"][-1]
+                    self.timestamps = np.squeeze(data[key]["timestamps"])
+                    self.end_time = self.timestamps[-1]
 
                 # In yarp telemetry v0.4.0 the elements_names was saved.
                 if "elements_names" in value.keys():

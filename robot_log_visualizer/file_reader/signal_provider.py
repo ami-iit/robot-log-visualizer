@@ -77,7 +77,7 @@ class SignalProvider(QThread):
                     for text, level in zip(text_ref[0], level_ref[0])
                 ]
 
-                data[key]["timestamps"] = np.array(value["timestamps"])
+                data[key]["timestamps"] = np.squeeze(np.array(value["timestamps"]))
 
             else:
                 data[key] = self.__populate_text_logging_data(file_object=value)
@@ -96,15 +96,15 @@ class SignalProvider(QThread):
             if "data" in value.keys():
                 data[key] = {}
                 data[key]["data"] = np.squeeze(np.array(value["data"]))
-                data[key]["timestamps"] = np.array(value["timestamps"])
+                data[key]["timestamps"] = np.squeeze(np.array(value["timestamps"]))
 
                 # if the initial or end time has been updated we can also update the entire timestamps dataset
                 if data[key]["timestamps"][0] < self.initial_time:
-                    self.timestamps = np.squeeze(data[key]["timestamps"])
+                    self.timestamps = data[key]["timestamps"]
                     self.initial_time = self.timestamps[0]
 
                 if data[key]["timestamps"][-1] > self.end_time:
-                    self.timestamps = np.squeeze(data[key]["timestamps"])
+                    self.timestamps = data[key]["timestamps"]
                     self.end_time = self.timestamps[-1]
 
                 # In yarp telemetry v0.4.0 the elements_names was saved.

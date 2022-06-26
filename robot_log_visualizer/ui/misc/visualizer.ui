@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1416</width>
+    <width>1073</width>
     <height>908</height>
    </rect>
   </property>
@@ -65,7 +65,7 @@
           </property>
           <property name="icon">
            <iconset theme="media-playback-pause">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
           </property>
           <property name="checkable">
            <bool>false</bool>
@@ -119,7 +119,7 @@
           </property>
           <property name="icon">
            <iconset theme="media-playback-start">
-            <normaloff>.</normaloff>.</iconset>
+            <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
           </property>
          </widget>
         </item>
@@ -235,7 +235,7 @@
            <widget class="QWidget" name="meshcatTab">
             <attribute name="icon">
              <iconset theme="input-gaming">
-              <normaloff>.</normaloff>.</iconset>
+              <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
             </attribute>
             <attribute name="title">
              <string/>
@@ -288,7 +288,8 @@
        </property>
        <widget class="QWidget" name="yarpTextLogWidget">
         <attribute name="icon">
-         <iconset theme="zoom-in"/>
+         <iconset theme="zoom-in">
+          <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
         </attribute>
         <attribute name="title">
          <string/>
@@ -345,72 +346,46 @@
              </property>
             </column>
            </widget>
-           <widget class="QScrollArea" name="logScrollArea_2">
+           <widget class="QTableWidget" name="yarpTextLogTableWidget">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
             <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
               <horstretch>10</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>120</height>
-             </size>
-            </property>
-            <property name="autoFillBackground">
-             <bool>false</bool>
-            </property>
-            <property name="styleSheet">
-             <string notr="true">background: white</string>
-            </property>
-            <property name="verticalScrollBarPolicy">
+            <property name="horizontalScrollBarPolicy">
              <enum>Qt::ScrollBarAsNeeded</enum>
             </property>
             <property name="sizeAdjustPolicy">
-             <enum>QAbstractScrollArea::AdjustToContents</enum>
+             <enum>QAbstractScrollArea::AdjustIgnored</enum>
             </property>
-            <property name="widgetResizable">
-             <bool>true</bool>
+            <property name="editTriggers">
+             <set>QAbstractItemView::NoEditTriggers</set>
             </property>
-            <widget class="QWidget" name="logScrollAreaWidgetContents_2">
-             <property name="geometry">
-              <rect>
-               <x>0</x>
-               <y>0</y>
-               <width>1087</width>
-               <height>201</height>
-              </rect>
-             </property>
-             <layout class="QGridLayout" name="gridLayout_2">
-              <item row="2" column="0">
-               <spacer name="logSpacer_2">
-                <property name="orientation">
-                 <enum>Qt::Vertical</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>20</width>
-                  <height>40</height>
-                 </size>
-                </property>
-               </spacer>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="yarpTextLogLabel">
-                <property name="cursor">
-                 <cursorShape>ArrowCursor</cursorShape>
-                </property>
-                <property name="text">
-                 <string/>
-                </property>
-                <property name="margin">
-                 <number>0</number>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </widget>
+            <property name="selectionMode">
+             <enum>QAbstractItemView::NoSelection</enum>
+            </property>
+            <property name="horizontalScrollMode">
+             <enum>QAbstractItemView::ScrollPerPixel</enum>
+            </property>
+            <property name="showGrid">
+             <bool>false</bool>
+            </property>
+            <property name="gridStyle">
+             <enum>Qt::NoPen</enum>
+            </property>
+            <property name="sortingEnabled">
+             <bool>false</bool>
+            </property>
+            <attribute name="horizontalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
+            <attribute name="verticalHeaderVisible">
+             <bool>false</bool>
+            </attribute>
            </widget>
           </widget>
          </item>
@@ -422,7 +397,7 @@
         </property>
         <attribute name="icon">
          <iconset theme="terminal">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
         </attribute>
         <attribute name="title">
          <string/>
@@ -432,7 +407,7 @@
        <widget class="QWidget" name="tab_5">
         <attribute name="icon">
          <iconset theme="document">
-          <normaloff>.</normaloff>.</iconset>
+          <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
         </attribute>
         <attribute name="title">
          <string/>
@@ -466,8 +441,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>1347</width>
-              <height>201</height>
+              <width>1004</width>
+              <height>190</height>
              </rect>
             </property>
             <layout class="QGridLayout" name="gridLayout">
@@ -513,7 +488,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1416</width>
+     <width>1073</width>
      <height>22</height>
     </rect>
    </property>
@@ -537,7 +512,7 @@
   <action name="actionQuit">
    <property name="icon">
     <iconset theme="exit">
-     <normaloff>.</normaloff>.</iconset>
+     <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
    </property>
    <property name="text">
     <string>&amp;Quit</string>
@@ -549,7 +524,7 @@
   <action name="actionOpen">
    <property name="icon">
     <iconset theme="document-open">
-     <normaloff>.</normaloff>.</iconset>
+     <normaloff>../../../../../.designer/backup</normaloff>../../../../../.designer/backup</iconset>
    </property>
    <property name="text">
     <string>&amp;Open</string>

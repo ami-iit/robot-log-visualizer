@@ -10,6 +10,24 @@ from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 
+class TextLoggingMsg:
+    def __init__(self, level, text):
+        self.level = level
+        self.text = text
+
+    def color(self):
+        if self.level == "ERROR":
+            return "#d62728"
+        elif self.level == "WARNING":
+            return "#ff7f0e"
+        elif self.level == "DEBUG":
+            return "#1f77b4"
+        elif self.level == "INFO":
+            return "#2ca02c"
+        else:
+            return "black"
+
+
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
@@ -27,6 +45,7 @@ class SignalProvider(QThread):
 
         self.data = {}
         self.timestamps = np.array([])
+        self.text_logging_data = {}
 
         self.initial_time = math.inf
         self.end_time = -math.inf
@@ -38,12 +57,41 @@ class SignalProvider(QThread):
 
         self._current_time = 0
 
-    def __populate_data(self, file_object):
+    def __populate_text_logging_data(self, file_object):
         data = {}
         for key, value in file_object.items():
             if not isinstance(value, h5py._hl.group.Group):
                 continue
             if key == "#refs#":
+                continue
+            if "data" in value.keys():
+                data[key] = {}
+                level_ref = value["data"]["level"]
+                text_ref = value["data"]["text"]
+
+                data[key]["data"] = [
+                    TextLoggingMsg(
+                        text="".join(chr(c[0]) for c in value[text]),
+                        level="".join(chr(c[0]) for c in value[level]),
+                    )
+                    for text, level in zip(text_ref[0], level_ref[0])
+                ]
+
+                data[key]["timestamps"] = np.array(value["timestamps"])
+
+            else:
+                data[key] = self.__populate_text_logging_data(file_object=value)
+
+        return data
+
+    def __populate_numerical_data(self, file_object):
+        data = {}
+        for key, value in file_object.items():
+            if not isinstance(value, h5py._hl.group.Group):
+                continue
+            if key == "#refs#":
+                continue
+            if key == "log":
                 continue
             if "data" in value.keys():
                 data[key] = {}
@@ -67,20 +115,24 @@ class SignalProvider(QThread):
                         for ref in elements_names_ref[0]
                     ]
             else:
-                data[key] = self.__populate_data(file_object=value)
+                data[key] = self.__populate_numerical_data(file_object=value)
 
         return data
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
-            self.data = self.__populate_data(file)
+            root_variable = file.get(self.root_name)
+            self.data = self.__populate_numerical_data(file)
+
+            if "log" in root_variable.keys():
+                self.text_logging_data["log"] = self.__populate_text_logging_data(
+                    root_variable["log"]
+                )
 
             for name in file.keys():
                 if "description_list" in file[name].keys():
                     self.root_name = name
                     break
-
-            root_variable = file.get(self.root_name)
 
             joint_ref = root_variable["description_list"]
             self.joints_name = [

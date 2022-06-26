@@ -90,8 +90,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.meshcatAndVideoTab.setTabIcon(
             0, get_icon("game-controller-outline.svg")
         )
-        self.ui.tabWidget.setTabIcon(0, get_icon("document-text-outline.svg"))
+        self.ui.tabWidget.setTabIcon(0, get_icon("calendar-outline.svg"))
         self.ui.tabWidget.setTabIcon(1, get_icon("terminal-outline.svg"))
+        self.ui.tabWidget.setTabIcon(2, get_icon("document-text-outline.svg"))
+
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
         self.ui.actionOpen.setIcon(get_icon("folder-open-outline.svg"))
@@ -117,6 +119,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # instantiate the Logger
         self.logger = Logger(self.ui.logLabel, self.ui.logScrollArea)
+        # print welcome message
+        self.logger.write_to_log("Robot Viewer started.")
+
+        self.text_logger = Logger(
+            self.ui.yarpTextLogLabel, self.ui.logScrollArea_2, add_time=False
+        )
+
         self._slider_pressed_mutex = QMutex()
         self._slider_pressed = False
 
@@ -138,6 +147,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
 
         self.ui.variableTreeWidget.itemClicked.connect(self.variableTreeWidget_on_click)
+        self.ui.yarpTextLogTreeWidget.itemClicked.connect(
+            self.textLogTreeWidget_on_click
+        )
+
         self.ui.tabPlotWidget.tabCloseRequested.connect(
             self.plotTabCloseButton_on_click
         )
@@ -190,6 +203,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) - 1
                 self.signal_provider.update_index(new_index)
+                self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
 
                 # for every video item we set the instant
                 for video_item in self.video_items:
@@ -207,6 +221,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) + 1
                 self.signal_provider.update_index(new_index)
+                self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
 
                 # for every video item we set the instant
                 for video_item in self.video_items:
@@ -246,6 +261,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
 
         self.signal_provider.update_index(index)
+        self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
 
     def timeSlider_on_release(self):
         index = int(self.ui.timeSlider.value())
@@ -259,6 +275,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
 
         self.signal_provider.update_index(index)
+        self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
         self.slider_pressed = False
 
     def startButton_on_click(self):
@@ -328,6 +345,56 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             paths, legends
         )
 
+    def show_text_log(self, path):
+        current_time = self.signal_provider.current_time
+        initial_time = self.signal_provider.initial_time
+        try:
+            ref = self.signal_provider.text_logging_data
+            for key in path:
+                ref = ref[key]
+
+            # clean the text logger
+            self.text_logger.clean()
+            logs = ref["data"]
+            timestamps = ref["timestamps"]
+            coulored = False
+            for i in range(len(ref["data"])):
+                background_color = None
+                # I can check the next element
+                # if i < len(ref["data"]) - 1:
+                #     if timestamps[i] - initial_time <= current_time and  timestamps[i+1] - initial_time > current_time:
+                #         background_color = "#ffeba8"
+                #         coulored = True
+                # elif not coulored:
+                #     background_color = "#ffeba8"
+                self.text_logger.write_to_log(
+                    str(timestamps[i] - initial_time) + ": " + logs[i].text,
+                    font_color=logs[i].color(),
+                    background_color=background_color,
+                )
+        except:
+            pass
+
+    def textLogTreeWidget_on_click(self):
+        paths = []
+        for index in self.ui.yarpTextLogTreeWidget.selectedIndexes():
+            path = []
+            is_leaf = True
+            while index.data() is not None:
+                if not is_leaf:
+                    path.append(index.data())
+                else:
+                    path.append(index.data())
+                    is_leaf = False
+
+                index = index.parent()
+
+            path.reverse()
+            paths.append(path)
+
+        if paths:
+            self.show_text_log(paths[0])
+
     def plotTabBar_currentChanged(self, index):
 
         # clear the selection to prepare a new one
@@ -346,9 +413,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def update_slider(self):
         if not self.slider_pressed:
             self.ui.timeSlider.setValue(self.signal_provider.index)
+            self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
 
     def closeEvent(self, event):
-
         # close the window
         self.pyconsole.close()
         for video_item in self.video_items:
@@ -390,6 +457,21 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             parent.addChild(item)
         return parent
 
+    def __populate_text_logging_tree_widget(self, obj, parent) -> QTreeWidgetItem:
+        if not isinstance(obj, dict):
+            return parent
+
+        if "data" in obj.keys() and "timestamps" in obj.keys():
+            return parent
+
+        for key, value in obj.items():
+            item = QTreeWidgetItem([key])
+            item = self.__populate_text_logging_tree_widget(value, item)
+            if "data" not in value.keys():
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
+            parent.addChild(item)
+        return parent
+
     def open_mat_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open a mat file", ".", filter="*.mat"
@@ -407,6 +489,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             )
             self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
+            # populate text logging tree
+            root = list(self.signal_provider.text_logging_data.keys())[0]
+            root_item = QTreeWidgetItem([root])
+            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+            items = self.__populate_text_logging_tree_widget(
+                self.signal_provider.text_logging_data[root], root_item
+            )
+            self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+
+            # spawn the console
             self.pyconsole.push_local_ns("data", self.signal_provider.data)
 
             self.ui.timeSlider.setMaximum(self.signal_size)
@@ -457,17 +549,16 @@ class Logger:
     Logger class shows events during the execution of the viewer.
     """
 
-    def __init__(self, log_widget, scroll_area):
+    def __init__(self, log_widget, scroll_area, add_time=True):
         # set log widget from main window
         self.log_widget = log_widget
 
         # set scroll area form main window
         self.scroll_area = scroll_area
 
-        # print welcome message
-        self.write_to_log("Robot Viewer started.")
+        self.add_time = add_time
 
-    def write_to_log(self, text):
+    def write_to_log(self, text, font_color=None, background_color=None):
         """
         Log the text "text" with a timestamp.
         """
@@ -475,17 +566,35 @@ class Logger:
         # extract current text from the log widget
         current_text = self.log_widget.text()
 
+        if font_color is not None:
+            text = '<font color="' + str(font_color) + '">' + text + "</font>"
+
+        if background_color is not None:
+            text = (
+                '<span style="background-color:'
+                + str(background_color)
+                + '">'
+                + text
+                + "</span>"
+            )
+
         # compose new text
         # convert local time to string
-        time_str = strftime(" [%H:%M:%S] ", localtime())
-        #
-        new_text = current_text + time_str + text + "\n"
+        if self.add_time:
+            time_str = strftime(" [%H:%M:%S] ", localtime())
+            #
+            new_text = current_text + time_str + text + "<br>"
+        else:
+            new_text = current_text + text + "<br>"
 
         # log into the widget
         self.log_widget.setText(new_text)
 
         # scroll down text
         self.scroll_down()
+
+    def clean(self):
+        self.log_widget.clear()
 
     def scroll_down(self):
         """

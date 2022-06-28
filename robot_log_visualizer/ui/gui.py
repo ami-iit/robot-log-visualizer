@@ -518,13 +518,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
             # populate text logging tree
-            root = list(self.signal_provider.text_logging_data.keys())[0]
-            root_item = QTreeWidgetItem([root])
-            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-            items = self.__populate_text_logging_tree_widget(
-                self.signal_provider.text_logging_data[root], root_item
-            )
-            self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+            if self.signal_provider.text_logging_data:
+                root = list(self.signal_provider.text_logging_data.keys())[0]
+                root_item = QTreeWidgetItem([root])
+                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+                items = self.__populate_text_logging_tree_widget(
+                    self.signal_provider.text_logging_data[root], root_item
+                )
+                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
 
             # spawn the console
             self.pyconsole.push_local_ns("data", self.signal_provider.data)

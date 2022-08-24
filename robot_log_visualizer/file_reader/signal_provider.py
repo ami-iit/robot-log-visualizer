@@ -69,15 +69,27 @@ class SignalProvider(QThread):
                 level_ref = value["data"]["level"]
                 text_ref = value["data"]["text"]
 
-                data[key]["data"] = [
-                    TextLoggingMsg(
-                        text="".join(chr(c[0]) for c in value[text]),
-                        level="".join(chr(c[0]) for c in value[level]),
-                    )
-                    for text, level in zip(text_ref[0], level_ref[0])
-                ]
-
                 data[key]["timestamps"] = np.squeeze(np.array(value["timestamps"]))
+
+                # New way to store the struct array in robometry https://github.com/robotology/robometry/pull/175
+                if text_ref.shape[0] == len(data[key]["timestamps"]):
+                    data[key]["data"] = [
+                        TextLoggingMsg(
+                            text="".join(chr(c[0]) for c in value[text[0]]),
+                            level="".join(chr(c[0]) for c in value[level[0]]),
+                        )
+                        for text, level in zip(text_ref, level_ref)
+                    ]
+
+                # Old approach (before https://github.com/robotology/robometry/pull/175)
+                else:
+                    data[key]["data"] = [
+                        TextLoggingMsg(
+                            text="".join(chr(c[0]) for c in value[text]),
+                            level="".join(chr(c[0]) for c in value[level]),
+                        )
+                        for text, level in zip(text_ref[0], level_ref[0])
+                    ]
 
             else:
                 data[key] = self.__populate_text_logging_data(file_object=value)

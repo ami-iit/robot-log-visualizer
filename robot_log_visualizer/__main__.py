@@ -19,9 +19,9 @@ from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvid
 
 def main():
     thread_periods = {
-        "meshcat_provider": 0.02,
-        "signal_provider": 0.01,
-        "plot_animation": 0.02,
+        "meshcat_provider": 0.03,
+        "signal_provider": 0.03,
+        "plot_animation": 0.03,
     }
 
     # instantiate device_manager

@@ -500,77 +500,98 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             parent.addChild(item)
         return parent
 
+    def __load_mat_file(self, file_name):
+        self.signal_provider.open_mat_file(file_name)
+        self.signal_size = len(self.signal_provider)
+
+        # populate tree
+        root = list(self.signal_provider.data.keys())[0]
+        root_item = QTreeWidgetItem([root])
+        root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+        items = self.__populate_variable_tree_widget(
+            self.signal_provider.data[root], root_item
+        )
+        self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+        # populate text logging tree
+        if self.signal_provider.text_logging_data:
+            root = list(self.signal_provider.text_logging_data.keys())[0]
+            root_item = QTreeWidgetItem([root])
+            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+            items = self.__populate_text_logging_tree_widget(
+                self.signal_provider.text_logging_data[root], root_item
+            )
+            self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+
+        # spawn the console
+        self.pyconsole.push_local_ns("data", self.signal_provider.data)
+
+        self.ui.timeSlider.setMaximum(self.signal_size)
+        self.ui.startButton.setEnabled(True)
+        self.ui.timeSlider.setEnabled(True)
+
+        # get all the video associated to the datase
+        filename_without_path = pathlib.Path(file_name).name
+        (prefix, sep, suffix) = filename_without_path.rpartition(".")
+
+        video_filenames = [
+            str(pathlib.Path(file_name).parent.absolute() / pathlib.Path(f))
+            for f in os.listdir(pathlib.Path(file_name).parent.absolute())
+            if re.search(prefix + "_[a-zA-Z0-9_]*\.mp4$", f)
+        ]
+
+        # for every video we create a video item and we append it to the tab
+        for video_filename in video_filenames:
+            video_prefix, _, _ = pathlib.Path(video_filename).name.rpartition(".")
+            video_label = str(video_prefix).replace(prefix + "_", "")
+            self.video_items.append(VideoItem(video_filename=video_filename))
+            self.ui.meshcatAndVideoTab.addTab(
+                self.video_items[-1], get_icon("videocam-outline.svg"), video_label
+            )
+            self.logger.write_to_log("Video '" + video_filename + "' opened.")
+
+        # load the model
+        self.meshcat_provider.load_model(
+            self.signal_provider.joints_name, self.signal_provider.robot_name
+        )
+
+        self.meshcat_provider.state = PeriodicThreadState.running
+
+        self.dataset_loaded = True
+
+        # write something in the log
+        self.logger.write_to_log("File '" + file_name + "' opened.")
+        self.logger.write_to_log(
+            "Robot name: '" + self.signal_provider.robot_name + "'."
+        )
+
     def open_mat_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open a mat file", ".", filter="*.mat"
         )
         if file_name:
-            self.signal_provider.open_mat_file(file_name)
-            self.signal_size = len(self.signal_provider)
-
-            # populate tree
-            root = list(self.signal_provider.data.keys())[0]
-            root_item = QTreeWidgetItem([root])
-            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-            items = self.__populate_variable_tree_widget(
-                self.signal_provider.data[root], root_item
-            )
-            self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
-
-            # populate text logging tree
-            if self.signal_provider.text_logging_data:
-                root = list(self.signal_provider.text_logging_data.keys())[0]
-                root_item = QTreeWidgetItem([root])
-                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-                items = self.__populate_text_logging_tree_widget(
-                    self.signal_provider.text_logging_data[root], root_item
-                )
-                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
-
-            # spawn the console
-            self.pyconsole.push_local_ns("data", self.signal_provider.data)
-
-            self.ui.timeSlider.setMaximum(self.signal_size)
-            self.ui.startButton.setEnabled(True)
-            self.ui.timeSlider.setEnabled(True)
-
-            # get all the video associated to the dataset
-
-            filename_without_path = pathlib.Path(file_name).name
-            (prefix, sep, suffix) = filename_without_path.rpartition(".")
-
-            video_filenames = [
-                str(pathlib.Path(file_name).parent.absolute() / pathlib.Path(f))
-                for f in os.listdir(pathlib.Path(file_name).parent.absolute())
-                if re.search(prefix + "_[a-zA-Z0-9_]*\.mp4$", f)
-            ]
-
-            # for every video we create a video item and we append it to the tab
-            for video_filename in video_filenames:
-                video_prefix, _, _ = pathlib.Path(video_filename).name.rpartition(".")
-                video_label = str(video_prefix).replace(prefix + "_", "")
-                self.video_items.append(VideoItem(video_filename=video_filename))
-                self.ui.meshcatAndVideoTab.addTab(
-                    self.video_items[-1], get_icon("videocam-outline.svg"), video_label
-                )
-                self.logger.write_to_log("Video '" + video_filename + "' opened.")
-            # load the model
-            self.meshcat_provider.load_model(
-                self.signal_provider.joints_name, self.signal_provider.robot_name
-            )
-
-            self.meshcat_provider.state = PeriodicThreadState.running
-
-            self.dataset_loaded = True
-
-            # write something in the log
-            self.logger.write_to_log("File '" + file_name + "' opened.")
-            self.logger.write_to_log(
-                "Robot name: '" + self.signal_provider.robot_name + "'."
-            )
+            self.__load_mat_file(file_name)
 
     def open_about(self):
         self.about.show()
+
+    def dropEvent(self, event):
+        if len(event.mimeData().urls()) != 1:
+            event.ignore()
+
+        url = event.mimeData().urls()[0].toLocalFile()
+        ext = os.path.splitext(url)[-1].lower()
+        if ext == ".mat":
+            self.__load_mat_file(url)
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
 
 
 class Logger:

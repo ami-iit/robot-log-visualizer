@@ -10,6 +10,9 @@
     <height>908</height>
    </rect>
   </property>
+  <property name="acceptDrops">
+   <bool>true</bool>
+  </property>
   <property name="windowTitle">
    <string>Robot Log Visualizer</string>
   </property>

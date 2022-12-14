@@ -42,6 +42,9 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         self.periond_in_ms = int(period * 1000)
 
+        # active paths
+        self.active_paths = {}
+
         self.vertical_line_anim = animation.FuncAnimation(
             self.fig,
             self.update_vertical_line,
@@ -49,9 +52,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
             interval=self.periond_in_ms,
             blit=True,
         )
-
-        # active paths
-        self.active_paths = {}
 
         # add plot toolbar from matplotlib
         self.toolbar = NavigationToolbar(self, self)

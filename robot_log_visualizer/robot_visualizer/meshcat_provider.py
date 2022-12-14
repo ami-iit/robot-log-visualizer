@@ -9,7 +9,8 @@ import icub_models
 import numpy as np
 import time
 
-from robot_log_visualizer.robot_visualizer.meshcat_visualizer import MeshcatVisualizer
+import idyntree.swig as idyn
+from idyntree.visualize import MeshcatVisualizer
 
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
@@ -25,6 +26,9 @@ class MeshcatProvider(QThread):
         self.meshcat_visualizer = MeshcatVisualizer()
         self._signal_provider = signal_provider
 
+        self.custom_model_path = ""
+        self.custom_package_dir = ""
+
     @property
     def state(self):
         locker = QMutexLocker(self.state_lock)
@@ -37,12 +41,25 @@ class MeshcatProvider(QThread):
         self._state = new_state
 
     def load_model(self, considered_joints, model_name):
-        if not model_name in icub_models.get_robot_names():
-            model_name = "iCubGenova09"
-        self.meshcat_visualizer.load_model_from_file(
-            model_path=icub_models.get_model_file(model_name),
-            considered_joints=considered_joints,
-            model_name="robot",
+        model_loader = idyn.ModelLoader()
+
+        if self.custom_model_path:
+            model_loader.loadReducedModelFromFile(
+                self.custom_model_path,
+                considered_joints,
+                "urdf",
+                [self.custom_package_dir],
+            )
+        else:
+            if not model_name in icub_models.get_robot_names():
+                model_name = "iCubGenova09"
+
+            model_loader.loadReducedModelFromFile(
+                str(icub_models.get_model_file(model_name)), considered_joints
+            )
+
+        self.meshcat_visualizer.load_model(
+            model_loader.model(), model_name="robot", color=0.8
         )
 
     def run(self):
@@ -59,7 +76,7 @@ class MeshcatProvider(QThread):
                     "joints_state"
                 ]["positions"]["data"]
 
-                self.meshcat_visualizer.set_multy_body_system_state(
+                self.meshcat_visualizer.set_multibody_system_state(
                     base_position,
                     base_rotation,
                     joint_value=joints[self._signal_provider.index, :],

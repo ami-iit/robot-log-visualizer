@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1073</width>
+    <width>929</width>
     <height>908</height>
    </rect>
   </property>
@@ -444,7 +444,7 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>1004</width>
+              <width>860</width>
               <height>190</height>
              </rect>
             </property>
@@ -491,7 +491,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1073</width>
+     <width>929</width>
      <height>22</height>
     </rect>
    </property>
@@ -509,7 +509,14 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>&amp;Edit</string>
+    </property>
+    <addaction name="actionSet_Robot_Model"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
    <addaction name="menuHelp"/>
   </widget>
   <action name="actionQuit">
@@ -539,6 +546,11 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionSet_Robot_Model">
+   <property name="text">
+    <string>Set Robot Model</string>
    </property>
   </action>
  </widget>

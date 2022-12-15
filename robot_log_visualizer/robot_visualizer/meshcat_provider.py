@@ -54,13 +54,18 @@ class MeshcatProvider(QThread):
             if not model_name in icub_models.get_robot_names():
                 model_name = "iCubGenova09"
 
+            self.custom_model_path = str(icub_models.get_model_file(model_name))
             model_loader.loadReducedModelFromFile(
-                str(icub_models.get_model_file(model_name)), considered_joints
+                self.custom_model_path, considered_joints
             )
+
+        if not model_loader.isValid():
+            return False
 
         self.meshcat_visualizer.load_model(
             model_loader.model(), model_name="robot", color=0.8
         )
+        return True
 
     def run(self):
         base_rotation = np.eye(3)

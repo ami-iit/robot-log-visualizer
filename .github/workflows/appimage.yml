@@ -19,19 +19,16 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 python3-pkg-resources coinor-libipopt-dev python3-pyqt5 python3-pyqt5.qtwebengine python3-pyqt5.qtmultimedia python3-qtpy libassimp-dev libqt5multimedia5-plugins swig
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
+          sudo apt-get install -y python3 python3-pkg-resources python3-pyqt5 python3-pyqt5.qtwebengine python3-pyqt5.qtmultimedia python3-qtpy libqt5multimedia5-plugins swig python3-testresources build-essential libeigen3-dev libxml2-dev coinor-libipopt-dev libassimp-dev libirrlicht-dev
 
       - name: Install appimage-builder
         run: |
-          sudo apt install -y patchelf desktop-file-utils libgdk-pixbuf2.0-dev fakeroot strace fuse
-          sudo wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O /usr/local/bin/appimagetool
-          sudo chmod +x /usr/local/bin/appimagetool
-          sudo pip install git+https://github.com/AppImageCrafters/appimage-builder.git
+          wget -O appimage-builder-x86_64.AppImage https://github.com/AppImageCrafters/appimage-builder/releases/download/v1.1.0/appimage-builder-1.1.0-x86_64.AppImage
+          chmod +x appimage-builder-x86_64.AppImage
+
+          # install (optional)
+          sudo mv appimage-builder-x86_64.AppImage /usr/local/bin/appimage-builder
+
 
       - name: Build AppImage
         run: |

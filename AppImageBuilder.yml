@@ -45,6 +45,9 @@ AppDir:
       - python3-qtpy
       - libassimp-dev
       - libqt5multimedia5-plugins
+    exclude:
+      - perl
+      - qtchooser
 
   files:
     exclude:
@@ -54,6 +57,9 @@ AppDir:
       - usr/share/doc/*/changelog.*
       - usr/share/doc/*/NEWS.*
       - usr/share/doc/*/TODO.*
+      - usr/include
+      - usr/lib/cmake
+      - usr/lib/pkgconfig
 
   runtime:
     env:

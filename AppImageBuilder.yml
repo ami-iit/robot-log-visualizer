@@ -22,7 +22,7 @@ AppDir:
   app_info:
     id: com.robot-log-visualizer.ami
     name: robot-log-visualizer
-    version: 0.4.1
+    version: 0.5.0
     icon: robot-log-visualizer-icon
     # Set the python executable as entry point
     exec: usr/bin/python3

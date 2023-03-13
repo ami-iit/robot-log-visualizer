@@ -67,3 +67,7 @@ Materials in this repository are distributed under the following license:
 
 > All software is licensed under the BSD 3-Clause License. See [LICENSE](https://github.com/ami-iit/robot-log-visualizer/blob/main/LICENSE) file for details.
 
+## 🧑‍💻 Maintainers
+
+* Giulio Romualdi ([@GiulioRomualdi](https://github.com/GiulioRomualdi))
+* Paolo Viceconte ([@paolo-viceconte](https://github.com/paolo-viceconte))

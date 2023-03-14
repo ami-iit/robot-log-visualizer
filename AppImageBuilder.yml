@@ -45,6 +45,12 @@ AppDir:
       - python3-qtpy
       - libassimp-dev
       - libqt5multimedia5-plugins
+      - libeigen3-dev
+      - libxml2-dev
+      - coinor-libipopt-dev
+      - libassimp-dev
+      - libirrlicht-dev
+
     exclude:
       - perl
       - qtchooser

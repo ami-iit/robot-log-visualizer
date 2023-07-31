@@ -198,19 +198,27 @@ class SignalProvider(QThread):
         return value
 
     def run(self):
-
         while True:
             start = time.time()
             if self.state == PeriodicThreadState.running:
                 self.index_lock.lock()
                 tmp_index = self._index
-                # check if index must be increased
-                if self._current_time > self.timestamps[tmp_index] - self.initial_time:
+                self._current_time += self.period
+                self._current_time = min(
+                    self._current_time, self.timestamps[-1] - self.initial_time
+                )
+
+                # find the index associated to the current time in self.timestamps
+                # this is valid since self.timestamps is sorted and self._current_time is increasing
+                while (
+                    self._current_time > self.timestamps[tmp_index] - self.initial_time
+                ):
                     tmp_index += 1
-                    tmp_index = min(tmp_index, self.timestamps.shape[0] - 1)
+                    if tmp_index > len(self.timestamps):
+                        break
 
                 self._index = tmp_index
-                self._current_time += self.period
+
                 self.index_lock.unlock()
 
                 self.update_index_signal.emit()

@@ -15,7 +15,6 @@ class TextLoggingItem:
         self.table_widget.clear()
 
     def add_entry(self, text, timestamp, font_color=None):
-
         item = QTableWidgetItem(text)
         if font_color is not None:
             # text = '<font color="' + str(font_color) + '">' + text + "</font>"

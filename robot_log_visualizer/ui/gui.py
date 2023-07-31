@@ -107,7 +107,6 @@ def build_plot_title_box_dialog():
 
 
 def get_icon(icon_name):
-
     icon = QtGui.QIcon()
     icon.addPixmap(
         QtGui.QPixmap(str(pathlib.Path(__file__).parent / "misc" / icon_name)),

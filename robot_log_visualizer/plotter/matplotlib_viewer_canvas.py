@@ -15,7 +15,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
     """
 
     def __init__(self, parent, signal_provider, period):
-
         # create a new figure
         self.fig = Figure(dpi=100)
 
@@ -66,13 +65,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.vertical_line_anim._stop()
 
     def update_plots(self, paths, legends):
-
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
 
             if path_string not in self.active_paths.keys():
-
                 data = self.signal_provider.data
                 for key in path[:-1]:
                     data = data[key]
@@ -90,7 +87,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():
-
             path = active_path.split("/")
 
             if path not in paths:

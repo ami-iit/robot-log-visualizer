@@ -149,7 +149,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.signal_provider = signal_provider
         self.signal_size = len(self.signal_provider)
-        self.signal_provider.register_update_index(self.update_slider)
+        self.signal_provider.register_update_index(self.update_index)
 
         self.meshcat_provider = meshcat_provider
 
@@ -256,10 +256,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 # for every video item we set the instant
                 for video_item in self.video_items:
                     if video_item.media_loaded:
+                        video_percentage = float(new_index) / float(
+                            self.ui.timeSlider.maximum()
+                        )
                         video_item.media_player.setPosition(
-                            new_index
-                            / self.ui.timeSlider.maximum()
-                            * video_item.media_player.duration()
+                            int(video_percentage * video_item.media_player.duration())
                         )
 
                 # update the time slider
@@ -277,10 +278,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 # for every video item we set the instant
                 for video_item in self.video_items:
                     if video_item.media_loaded:
+                        video_percentage = float(new_index) / float(
+                            self.ui.timeSlider.maximum()
+                        )
                         video_item.media_player.setPosition(
-                            new_index
-                            / self.ui.timeSlider.maximum()
-                            * video_item.media_player.duration()
+                            int(video_percentage * video_item.media_player.duration())
                         )
 
                 self.ui.timeSlider.setValue(new_index)
@@ -305,10 +307,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         for video_item in self.video_items:
             if video_item.media_loaded:
+                video_percentage = float(index) / float(self.ui.timeSlider.maximum())
                 video_item.media_player.setPosition(
-                    index
-                    / self.ui.timeSlider.maximum()
-                    * video_item.media_player.duration()
+                    int(video_percentage * video_item.media_player.duration())
                 )
 
         self.signal_provider.update_index(index)
@@ -322,10 +323,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         for video_item in self.video_items:
             if video_item.media_loaded:
+                video_percentage = float(index) / float(self.ui.timeSlider.maximum())
                 video_item.media_player.setPosition(
-                    index
-                    / self.ui.timeSlider.maximum()
-                    * video_item.media_player.duration()
+                    int(video_percentage * video_item.media_player.duration())
                 )
 
         self.signal_provider.update_index(index)
@@ -338,12 +338,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def startButton_on_click(self):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
-
-        ## TODO its better to start the video only if the tab is active. This will improve the peroformances
-        for video_item in self.video_items:
-            if video_item.media_loaded:
-                video_item.media_player.play()
-
         self.signal_provider.state = PeriodicThreadState.running
         # self.meshcat_provider.state = PeriodicThreadState.running
 
@@ -363,7 +357,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
-
         self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
         del self.plot_items[index]
@@ -372,7 +365,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.tabPlotWidget.setTabsClosable(False)
 
     def plotTabBar_on_doubleClick(self, index):
-
         dlg, plot_title = build_plot_title_box_dialog()
         if dlg.exec() == QDialog.Accepted:
             self.ui.tabPlotWidget.setTabText(index, plot_title.text())
@@ -464,7 +456,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.text_logger.highlight_cell(self.find_text_log_index(path))
 
     def plotTabBar_currentChanged(self, index):
-
         # clear the selection to prepare a new one
         self.ui.variableTreeWidget.clearSelection()
         for active_path_str in self.plot_items[index].canvas.active_paths.keys():
@@ -478,13 +469,23 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item.setSelected(True)
 
     @pyqtSlot()
-    def update_slider(self):
+    def update_index(self):
         if not self.slider_pressed:
             self.ui.timeSlider.setValue(self.signal_provider.index)
             self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
             self.text_logger.highlight_cell(
                 self.find_text_log_index(self.get_text_log_item_path())
             )
+
+            # TODO: this is a hack to update the video player and it should be done only for the activated videos
+            for video_item in self.video_items:
+                if video_item.media_loaded:
+                    video_percentage = float(self.ui.timeSlider.value()) / float(
+                        self.ui.timeSlider.maximum()
+                    )
+                    video_item.media_player.setPosition(
+                        int(video_percentage * video_item.media_player.duration())
+                    )
 
     def closeEvent(self, event):
         # close the window
@@ -608,6 +609,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.video_items[-1], get_icon("videocam-outline.svg"), video_label
             )
             self.logger.write_to_log("Video '" + video_filename + "' opened.")
+
+        # pause all the videos
+        for video_item in self.video_items:
+            if video_item.media_loaded:
+                video_item.media_player.pause()
 
         self.meshcat_provider.state = PeriodicThreadState.running
 

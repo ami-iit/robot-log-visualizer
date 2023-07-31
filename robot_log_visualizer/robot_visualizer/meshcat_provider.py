@@ -49,7 +49,7 @@ class MeshcatProvider(QThread):
         def get_model_path_from_envs(env_list):
             return [
                 Path(f) if (env != "AMENT_PREFIX_PATH") else Path(f) / "share"
-                for env in env_list
+                for env in env_list if os.getenv(env) is not None
                 for f in os.getenv(env).split(os.pathsep)
             ]
 
@@ -67,7 +67,6 @@ class MeshcatProvider(QThread):
                 [self.custom_package_dir],
             )
         else:
-
             model_found_in_env_folders = False
             for folder in get_model_path_from_envs(self.env_list):
                 if check_if_model_exist(folder, model_name):

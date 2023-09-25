@@ -459,12 +459,19 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.variableTreeWidget.clearSelection()
         for active_path_str in self.plot_items[index].canvas.active_paths.keys():
             path = active_path_str.split("/")
+
+            # select the item in the tree from the path
             item = self.ui.variableTreeWidget.topLevelItem(0)
-            for subpath in path[1:]:
+            for subpath in path[1:-1]:
+
+                # find the item given its name
                 for child_id in range(item.childCount()):
                     if item.child(child_id).text(0) == subpath:
                         item = item.child(child_id)
                         break
+
+            # the latest value is a number
+            item = item.child(int(path[-1]))
             item.setSelected(True)
 
     @pyqtSlot()

@@ -4,8 +4,6 @@
 
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker
 
-import icub_models
-
 import os
 import re
 from pathlib import Path
@@ -28,6 +26,7 @@ class MeshcatProvider(QThread):
 
         self._period = period
         self.meshcat_visualizer = MeshcatVisualizer()
+        self._is_model_loaded = False
         self._signal_provider = signal_provider
 
         self.custom_model_path = ""
@@ -49,7 +48,8 @@ class MeshcatProvider(QThread):
         def get_model_path_from_envs(env_list):
             return [
                 Path(f) if (env != "AMENT_PREFIX_PATH") else Path(f) / "share"
-                for env in env_list if os.getenv(env) is not None
+                for env in env_list
+                if os.getenv(env) is not None
                 for f in os.getenv(env).split(os.pathsep)
             ]
 
@@ -57,8 +57,12 @@ class MeshcatProvider(QThread):
             path = folder_path / Path(model)
             return path.is_dir()
 
+        self._is_model_loaded = False
+
+        # Load the model
         model_loader = idyn.ModelLoader()
 
+        # In this case the user specify the model path
         if self.custom_model_path:
             model_loader.loadReducedModelFromFile(
                 self.custom_model_path,
@@ -67,7 +71,10 @@ class MeshcatProvider(QThread):
                 [self.custom_package_dir],
             )
         else:
+            # Attempt to find the model in the envs folders
             model_found_in_env_folders = False
+
+            # Check if the model is in one of the folders specified in the envs
             for folder in get_model_path_from_envs(self.env_list):
                 if check_if_model_exist(folder, model_name):
                     folder_model_path = folder / Path(model_name)
@@ -82,8 +89,9 @@ class MeshcatProvider(QThread):
                         self.custom_model_path = str(model_filenames[0])
                         break
 
+            # If the model is not found we exit
             if not model_found_in_env_folders:
-                self.custom_model_path = str(icub_models.get_model_file(model_name))
+                return False
 
             model_loader.loadReducedModelFromFile(
                 self.custom_model_path, considered_joints
@@ -95,6 +103,9 @@ class MeshcatProvider(QThread):
         self.meshcat_visualizer.load_model(
             model_loader.model(), model_name="robot", color=0.8
         )
+
+        self._is_model_loaded = True
+
         return True
 
     def run(self):
@@ -104,7 +115,7 @@ class MeshcatProvider(QThread):
         while True:
             start = time.time()
 
-            if self.state == PeriodicThreadState.running:
+            if self.state == PeriodicThreadState.running and self._is_model_loaded:
                 # These are the robot measured joint positions in radians
                 joints = self._signal_provider.data[self._signal_provider.root_name][
                     "joints_state"

@@ -5,7 +5,19 @@
 
 ## 📝 Install
 
-Please follow one of the following method to use the software
+Please follow one of the following methods to use the software
+
+### <img src="https://github.com/ami-iit/robot-log-visualizer/assets/16744101/8de4bc21-26be-4ec5-a262-6179b53ef082" width="22" height="22"/> Install with `conda` (recommended)
+
+Assuming that you have [`conda`](https://docs.conda.io/en/latest/) installed, you can create a new environment and install the `robot-log-visualizer` with the following commands:
+```console
+conda create -n visualizer-env
+conda activate visualizer-env
+```
+ and you can install the `robot-log-visualizer` with the following command
+```console
+conda install -c robotology robot-log-visualizer
+```
 
 ### 🐍 Install from `pip` with apt python
 
@@ -21,16 +33,15 @@ python3 -m venv visualizer-env
 . visualizer-env/bin/activate
 ```
 
-Inside the virtual environment, install the library from `pip`:
+Inside the virtual environment, install the application from `pip`:
 
 ```console
 pip install robot-log-visualizer
 ```
 
-
 ### 📦 Use the `AppImage`
 If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/).
-Please run the following command on your terminal. Remeber to change the `version` number in the following command
+Please run the following command on your terminal. Remember to change the `version` number in the following command
 ```console
 version=0.6.1
 wget https://github.com/ami-iit/robot-log-visualizer/releases/download/v${version}/robot-log-visualizer-${version}-x86_64.AppImage
@@ -42,7 +53,7 @@ Run the application
 ./robot-log-visualizer-${version}-x86_64.AppImage
 ```
 
-### 👷 Install latest version (not recommended)
+### 👷 Install the latest version (not recommended)
 If you want to use the latest feature of the `robot-log-visualizer` you can install it with the
 following command
 ```console
@@ -51,10 +62,9 @@ python -m pip install git+https://github.com/ami-iit/robot-log-visualizer.git
 
 ## 🏃 Example
 
-Once you have install the `robot-log-visualizer` you can run it from the terminal
+Once you have installed the `robot-log-visualizer` you can run it from the terminal
 
-https://user-images.githubusercontent.com/16744101/175927697-19d3b4fa-f315-483f-8ee5-ce571bf717a3.mp4
-
+[robot-log-visualizer.webm](https://github.com/ami-iit/robot-log-visualizer/assets/16744101/3fd5c516-da17-4efa-b83b-392b5ce1383b)
 
 You can navigate the dataset thanks to the slider or by pressing `Ctrl-f` and `Ctrl-b` to move
 forward and backward.

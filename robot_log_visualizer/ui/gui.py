@@ -463,7 +463,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             # select the item in the tree from the path
             item = self.ui.variableTreeWidget.topLevelItem(0)
             for subpath in path[1:-1]:
-
                 # find the item given its name
                 for child_id in range(item.childCount()):
                     if item.child(child_id).text(0) == subpath:
@@ -558,17 +557,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name
         ):
+            # if not loaded we print an error but we continue
             msg = "Unable to load the model: "
             if self.meshcat_provider.custom_model_path:
                 msg = msg + self.meshcat_provider.custom_model_path
             else:
                 msg = msg + self.signal_provider.robot_name
 
-            self.logger.write_to_log(
-                "Unable to load the model from: "
-                + self.meshcat_provider.custom_model_path
-            )
-            return
+            self.logger.write_to_log(msg)
 
         # populate tree
         root = list(self.signal_provider.data.keys())[0]

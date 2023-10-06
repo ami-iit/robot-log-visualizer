@@ -39,20 +39,6 @@ Inside the virtual environment, install the application from `pip`:
 pip install robot-log-visualizer
 ```
 
-### 📦 Use the `AppImage`
-If you are in a Linux distribution you can use the [`AppImage`](https://appimage.org/).
-Please run the following command on your terminal. Remember to change the `version` number in the following command
-```console
-version=0.6.1
-wget https://github.com/ami-iit/robot-log-visualizer/releases/download/v${version}/robot-log-visualizer-${version}-x86_64.AppImage
-chmod a+x robot-log-visualizer-${version}-x86_64.AppImage
-```
-
-Run the application
-```console
-./robot-log-visualizer-${version}-x86_64.AppImage
-```
-
 ### 👷 Install the latest version (not recommended)
 If you want to use the latest feature of the `robot-log-visualizer` you can install it with the
 following command

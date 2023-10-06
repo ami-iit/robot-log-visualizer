@@ -73,9 +73,16 @@ class SignalProvider(QThread):
 
                 # New way to store the struct array in robometry https://github.com/robotology/robometry/pull/175
                 if text_ref.shape[0] == len(data[key]["timestamps"]):
+                    # If len(value[text[0]].shape) == 2 then the text contains a string, otherwise it is empty
+                    # We need to manually check the shape to handle the case in which the text is empty
                     data[key]["data"] = [
                         TextLoggingMsg(
                             text="".join(chr(c[0]) for c in value[text[0]]),
+                            level="".join(chr(c[0]) for c in value[level[0]]),
+                        )
+                        if len(value[text[0]].shape) == 2
+                        else TextLoggingMsg(
+                            text="",
                             level="".join(chr(c[0]) for c in value[level[0]]),
                         )
                         for text, level in zip(text_ref, level_ref)

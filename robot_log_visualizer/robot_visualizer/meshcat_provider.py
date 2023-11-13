@@ -57,16 +57,42 @@ class MeshcatProvider(QThread):
             path = folder_path / Path(model)
             return path.is_dir()
 
+        # Find the index of the model joints in the considered joints
+        # This function is required if some of the considered joints are not in the model
+        # For instance in underactuated robots
+        def find_model_joints(model_name, considered_joints):
+            ml = idyn.ModelLoader()
+            ml.loadModelFromFile(model_name)
+            model_joints_index = []
+            model = ml.model()
+            number_of_joints = model.getNrOfJoints()
+            for i in range(number_of_joints):
+                joint_name = model.getJointName(i)
+                if joint_name in considered_joints:
+                    # find the index of the joint in the considered joints
+                    index = considered_joints.index(joint_name)
+                    model_joints_index.append(index)
+
+            return model_joints_index
+
         self._is_model_loaded = False
 
         # Load the model
         model_loader = idyn.ModelLoader()
 
+        self.model_joints_index = []
         # In this case the user specify the model path
         if self.custom_model_path:
+            self.model_joints_index = find_model_joints(
+                self.custom_model_path, considered_joints
+            )
+            considered_model_joints = [
+                considered_joints[i] for i in self.model_joints_index
+            ]
+
             model_loader.loadReducedModelFromFile(
                 self.custom_model_path,
-                considered_joints,
+                considered_model_joints,
                 "urdf",
                 [self.custom_package_dir],
             )
@@ -93,8 +119,14 @@ class MeshcatProvider(QThread):
             if not model_found_in_env_folders:
                 return False
 
-            model_loader.loadReducedModelFromFile(
+            self.model_joints_index = find_model_joints(
                 self.custom_model_path, considered_joints
+            )
+            considered_model_joints = [
+                considered_joints[i] for i in self.model_joints_index
+            ]
+            model_loader.loadReducedModelFromFile(
+                self.custom_model_path, considered_model_joints
             )
 
         if not model_loader.isValid():
@@ -124,7 +156,9 @@ class MeshcatProvider(QThread):
                 self.meshcat_visualizer.set_multibody_system_state(
                     base_position,
                     base_rotation,
-                    joint_value=joints[self._signal_provider.index, :],
+                    joint_value=joints[
+                        self._signal_provider.index, self.model_joints_index
+                    ],
                     model_name="robot",
                 )
 

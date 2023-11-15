@@ -246,7 +246,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             if event.key() == Qt.Key_B:
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) - 1
-                self.signal_provider.update_index(new_index)
+                dataset_percentage = float(new_index) / float(
+                    self.ui.timeSlider.maximum()
+                )
+                self.signal_provider.set_dataset_percentage(dataset_percentage)
                 self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
                 self.text_logger.highlight_cell(
                     self.find_text_log_index(self.get_text_log_item_path())
@@ -255,11 +258,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 # for every video item we set the instant
                 for video_item in self.video_items:
                     if video_item.media_loaded:
-                        video_percentage = float(new_index) / float(
-                            self.ui.timeSlider.maximum()
-                        )
                         video_item.media_player.setPosition(
-                            int(video_percentage * video_item.media_player.duration())
+                            int(dataset_percentage * video_item.media_player.duration())
                         )
 
                 # update the time slider
@@ -268,7 +268,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             elif event.key() == Qt.Key_F:
                 self.slider_pressed = True
                 new_index = int(self.ui.timeSlider.value()) + 1
-                self.signal_provider.update_index(new_index)
+                dataset_percentage = float(new_index) / float(
+                    self.ui.timeSlider.maximum()
+                )
+                self.signal_provider.set_dataset_percentage(dataset_percentage)
                 self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
                 self.text_logger.highlight_cell(
                     self.find_text_log_index(self.get_text_log_item_path())
@@ -277,11 +280,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 # for every video item we set the instant
                 for video_item in self.video_items:
                     if video_item.media_loaded:
-                        video_percentage = float(new_index) / float(
-                            self.ui.timeSlider.maximum()
-                        )
                         video_item.media_player.setPosition(
-                            int(video_percentage * video_item.media_player.duration())
+                            int(dataset_percentage * video_item.media_player.duration())
                         )
 
                 self.ui.timeSlider.setValue(new_index)
@@ -303,15 +303,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def timeSlider_on_sliderMoved(self):
         index = int(self.ui.timeSlider.value())
+        dataset_percentage = float(index) / float(self.ui.timeSlider.maximum())
 
         for video_item in self.video_items:
             if video_item.media_loaded:
-                video_percentage = float(index) / float(self.ui.timeSlider.maximum())
                 video_item.media_player.setPosition(
-                    int(video_percentage * video_item.media_player.duration())
+                    int(dataset_percentage * video_item.media_player.duration())
                 )
 
-        self.signal_provider.update_index(index)
+        self.signal_provider.set_dataset_percentage(dataset_percentage)
         self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
         self.text_logger.highlight_cell(
             self.find_text_log_index(self.get_text_log_item_path())
@@ -319,15 +319,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def timeSlider_on_release(self):
         index = int(self.ui.timeSlider.value())
+        dataset_percentage = float(index) / float(self.ui.timeSlider.maximum())
 
         for video_item in self.video_items:
             if video_item.media_loaded:
-                video_percentage = float(index) / float(self.ui.timeSlider.maximum())
                 video_item.media_player.setPosition(
-                    int(video_percentage * video_item.media_player.duration())
+                    int(dataset_percentage * video_item.media_player.duration())
                 )
 
-        self.signal_provider.update_index(index)
+        self.signal_provider.set_dataset_percentage(dataset_percentage)
         self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
         self.text_logger.highlight_cell(
             self.find_text_log_index(self.get_text_log_item_path())
@@ -475,22 +475,24 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     @pyqtSlot()
     def update_index(self):
-        if not self.slider_pressed:
-            self.ui.timeSlider.setValue(self.signal_provider.index)
-            self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
-            self.text_logger.highlight_cell(
-                self.find_text_log_index(self.get_text_log_item_path())
-            )
+        if self.slider_pressed:
+            return
 
-            # TODO: this is a hack to update the video player and it should be done only for the activated videos
-            for video_item in self.video_items:
-                if video_item.media_loaded:
-                    video_percentage = float(self.ui.timeSlider.value()) / float(
-                        self.ui.timeSlider.maximum()
-                    )
-                    video_item.media_player.setPosition(
-                        int(video_percentage * video_item.media_player.duration())
-                    )
+        self.ui.timeSlider.setValue(self.signal_provider.index)
+        self.ui.timeLabel.setText(f"{self.signal_provider.current_time:.2f}")
+        self.text_logger.highlight_cell(
+            self.find_text_log_index(self.get_text_log_item_path())
+        )
+
+        # TODO: this is a hack to update the video player and it should be done only for the activated videos
+        for video_item in self.video_items:
+            if video_item.media_loaded:
+                video_percentage = float(self.ui.timeSlider.value()) / float(
+                    self.ui.timeSlider.maximum()
+                )
+                video_item.media_player.setPosition(
+                    int(video_percentage * video_item.media_player.duration())
+                )
 
     def closeEvent(self, event):
         # close the window

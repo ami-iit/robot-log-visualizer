@@ -193,6 +193,9 @@ class SignalProvider(QThread):
     def register_update_index(self, slot):
         self.update_index_signal.connect(slot)
 
+    def set_dataset_percentage(self, percentage):
+        self.update_index(int(percentage * len(self)))
+
     def update_index(self, index):
         locker = QMutexLocker(self.index_lock)
         self._index = max(min(index, len(self.timestamps) - 1), 0)
@@ -203,6 +206,19 @@ class SignalProvider(QThread):
         locker = QMutexLocker(self.index_lock)
         value = self._current_time
         return value
+
+    def get_joints_position(self):
+        return self.data[self.root_name]["joints_state"]["positions"]["data"]
+
+    def get_joints_position_at_index(self, index):
+        joints_position_timestamps = self.data[self.root_name]["joints_state"][
+            "positions"
+        ]["timestamps"]
+        # given the index find the closest timestamp
+        closest_index = np.argmin(
+            np.abs(joints_position_timestamps - self.timestamps[index])
+        )
+        return self.get_joints_position()[closest_index, :]
 
     def run(self):
         while True:

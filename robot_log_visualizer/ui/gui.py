@@ -177,6 +177,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # connect action
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
+        self.ui.actionConnect.triggered.connect(self.connect_realtime_logger)
         self.ui.actionAbout.triggered.connect(self.open_about)
         self.ui.actionSet_Robot_Model.triggered.connect(self.open_set_robot_model)
 
@@ -635,6 +636,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         )
         if file_name:
             self.__load_mat_file(file_name)
+
+    def connect_realtime_logger(self):
+        print("Now connecting for real-time logging")
 
     def open_about(self):
         self.about.show()

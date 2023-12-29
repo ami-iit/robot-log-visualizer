@@ -138,6 +138,39 @@ class SignalProvider(QThread):
 
         return data
 
+    # TODO:
+    # Make a dummy self.data which populates with data you choose to
+    # understand how the plot works
+    # Then you can understand how to send the data and then serialize it
+    # Once done, try appending data to self.data periodically
+    # To symbolize how data would work coming in
+    # After send the data from the logger and visualize it right there
+    def establish_connection(self):
+        self.t = {'x': 1}
+        key = 'l_arm_ft'
+        self.data = {'robot_logger_device': {'FTs': {'l_arm_ft': {'data': np.array([[16.04658911],  [8.32923841], [41.25904926]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x'])} } } }
+        """ if self.data[key]["timestamps"][0] < self.initial_time:
+            self.timestamps = self.data[key]["timestamps"]
+            self.initial_time = self.timestamps[0]
+
+        if self.data[key]["timestamps"][-1] > self.end_time:
+            self.timestamps = self.data[key]["timestamps"]
+            self.end_time = self.timestamps[-1]
+
+
+        """
+        if self.data['robot_logger_device']['FTs'][key]["timestamps"][0] < self.initial_time:
+            self.timestamps = self.data['robot_logger_device']['FTs'][key]["timestamps"]
+            self.initial_time = self.timestamps[0]
+
+        if self.data['robot_logger_device']['FTs'][key]["timestamps"][-1] > self.end_time:
+            self.timestamps = self.data['robot_logger_device']['FTs'][key]["timestamps"]
+            self.end_time = self.timestamps[-1]
+
+#        self.data = self.__populate_numerical_data(self.data)
+        print("Data from connection")
+        print(self.data)
+
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
             root_variable = file.get(self.root_name)

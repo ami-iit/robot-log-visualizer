@@ -639,6 +639,46 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def connect_realtime_logger(self):
         print("Now connecting for real-time logging")
+        self.signal_provider.establish_connection()
+        root = list(self.signal_provider.data.keys())[0]
+        root_item = QTreeWidgetItem([root])
+        root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+        items = self.__populate_variable_tree_widget(
+            self.signal_provider.data[root], root_item
+        )
+        self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+        # populate text logging tree
+        if self.signal_provider.text_logging_data:
+            root = list(self.signal_provider.text_logging_data.keys())[0]
+            root_item = QTreeWidgetItem([root])
+            root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+            items = self.__populate_text_logging_tree_widget(
+                self.signal_provider.text_logging_data[root], root_item
+            )
+            self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+
+        # spawn the console
+        self.pyconsole.push_local_ns("data", self.signal_provider.data)
+
+        self.ui.timeSlider.setMaximum(self.signal_size)
+        self.ui.startButton.setEnabled(True)
+        self.ui.timeSlider.setEnabled(True)
+        # for now will hard code the device name to: /testLoggerOutput
+        """
+        import yarp
+        yarp.Network.init()
+        loggingInput = yarp.BufferedPortBottle()
+        loggingInput.open("/visualizerInput")
+        yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
+        success = loggingInput.read()
+        if not success:
+            print("Failed")
+        else:
+            print("Success")
+        yarp.Network.fini()
+        """
+
 
     def open_about(self):
         self.about.show()

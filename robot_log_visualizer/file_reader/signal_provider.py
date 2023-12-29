@@ -148,7 +148,10 @@ class SignalProvider(QThread):
     def establish_connection(self):
         self.t = {'x': 1}
         key = 'l_arm_ft'
-        self.data = {'robot_logger_device': {'FTs': {'l_arm_ft': {'data': np.array([[16.04658911],  [8.32923841], [41.25904926]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x'])} } } }
+        self.data = {'robot_logger_device':
+                     {'FTs':
+                      {'l_arm_ft':
+                       {'data': np.array([[16.04658911, 0.0],  [8.32923841, 5.0], [41.25904926, 10.0]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x', 'f_y'])}} } }
         """ if self.data[key]["timestamps"][0] < self.initial_time:
             self.timestamps = self.data[key]["timestamps"]
             self.initial_time = self.timestamps[0]

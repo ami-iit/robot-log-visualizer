@@ -9,6 +9,10 @@ import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
+# for real-time logging
+import yarp
+import json
+
 
 class TextLoggingMsg:
     def __init__(self, level, text):
@@ -56,6 +60,9 @@ class SignalProvider(QThread):
         self.root_name = "robot_logger_device"
 
         self._current_time = 0
+
+        # for networking with the real-time logger
+        self.networkInit = False
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -109,8 +116,10 @@ class SignalProvider(QThread):
             if not isinstance(value, h5py._hl.group.Group):
                 continue
             if key == "#refs#":
+                print("Skipping for refs")
                 continue
             if key == "log":
+                print("Skipping for log")
                 continue
             if "data" in value.keys():
                 data[key] = {}
@@ -133,6 +142,7 @@ class SignalProvider(QThread):
                         "".join(chr(c[0]) for c in value[ref])
                         for ref in elements_names_ref[0]
                     ]
+                
             else:
                 data[key] = self.__populate_numerical_data(file_object=value)
 
@@ -146,38 +156,59 @@ class SignalProvider(QThread):
     # To symbolize how data would work coming in
     # After send the data from the logger and visualize it right there
     def establish_connection(self):
-        self.t = {'x': 1}
-        key = 'l_arm_ft'
-        self.data = {'robot_logger_device':
-                     {'FTs':
-                      {'l_arm_ft':
-                       {'data': np.array([[16.04658911, 0.0],  [8.32923841, 5.0], [41.25904926, 10.0]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x', 'f_y'])}} } }
-        """ if self.data[key]["timestamps"][0] < self.initial_time:
-            self.timestamps = self.data[key]["timestamps"]
-            self.initial_time = self.timestamps[0]
+        key = "l_arm_ft"
+        if not self.networkInit:
+            yarp.Network.init()
+            self.loggingInput = yarp.BufferedPortBottle()
+            self.loggingInput.open("/visualizerInput")
+            yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
+            self.data = {'robot_realtime': {'FTs': {key: {'data': np.array([np.array([])]), 'timestamps': np.array([])}}}}
+            self.networkInit = True
+        success = self.loggingInput.read()
+        if not success:
+            print("Failed")
+        else:
+            rawInput = str(success.toString())
+            # json.loads is done twice, the 1st time is to remove \\ character
+            # the 2nd time actually converts the string to the dictionary
+            input = json.loads(json.loads(rawInput))
+   
+            self.data['robot_realtime']['FTs'][key]["data"] = np.append(self.data['robot_realtime']['FTs'][key]["data"], np.array(input['robot_realtime']['FTs'][key]["data"])).reshape(-1,1)
+            self.data['robot_realtime']['FTs'][key]["timestamps"] = np.append(self.data['robot_realtime']['FTs'][key]["timestamps"], input['robot_realtime']['FTs'][key]["timestamps"])
+            print(self.data)
+        #    if (len(self.data['robot_realtime']['FTs'][key]["data"]))
 
-        if self.data[key]["timestamps"][-1] > self.end_time:
-            self.timestamps = self.data[key]["timestamps"]
-            self.end_time = self.timestamps[-1]
 
+            """
+            self.t = {'x': 1}
+            key = 'l_arm_ft'
+            self.data = {'robot_logger_device':
+                        {'FTs':
+                        {'l_arm_ft':
+                        {'data': np.array([[16.04658911, 0.0],  [8.32923841, 5.0], [41.25904926, 10.0]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x', 'f_y'])}} } }
+            """
 
-        """
-        if self.data['robot_logger_device']['FTs'][key]["timestamps"][0] < self.initial_time:
-            self.timestamps = self.data['robot_logger_device']['FTs'][key]["timestamps"]
-            self.initial_time = self.timestamps[0]
+            if self.data['robot_realtime']['FTs'][key]["timestamps"][0] < self.initial_time:
+                self.timestamps = self.data['robot_realtime']['FTs'][key]["timestamps"]
+                self.initial_time = self.timestamps[0]
 
-        if self.data['robot_logger_device']['FTs'][key]["timestamps"][-1] > self.end_time:
-            self.timestamps = self.data['robot_logger_device']['FTs'][key]["timestamps"]
-            self.end_time = self.timestamps[-1]
-
-#        self.data = self.__populate_numerical_data(self.data)
-        print("Data from connection")
-        print(self.data)
+            if self.data['robot_realtime']['FTs'][key]["timestamps"][-1] > self.end_time:
+                self.timestamps = self.data['robot_realtime']['FTs'][key]["timestamps"]
+                self.end_time = self.timestamps[-1]
+        
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
+        #    print("mat file items")
+        #    print(file.items())
             root_variable = file.get(self.root_name)
             self.data = self.__populate_numerical_data(file)
+        #    print("Root Variable:")
+        #    print(root_variable)
+        #    print("MAT file keys:")
+        #    print(file.keys())
+        #    print("Root name keys:")
+        #    print(root_variable.keys())
 
             if "log" in root_variable.keys():
                 self.text_logging_data["log"] = self.__populate_text_logging_data(
@@ -200,6 +231,8 @@ class SignalProvider(QThread):
                 except:
                     pass
             self.index = 0
+            print("Data:")
+            print(self.data)
 
     def __len__(self):
         return self.timestamps.shape[0]

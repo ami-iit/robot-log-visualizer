@@ -3,6 +3,7 @@
 # Released under the terms of the BSD 3-Clause License
 
 # PyQt5
+import threading
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QUrl
 from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
@@ -42,6 +43,8 @@ from time import localtime, strftime
 # Matplotlib class
 from pyqtconsole.console import PythonConsole
 import pyqtconsole.highlighter as hl
+
+import time
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -115,11 +118,49 @@ def get_icon(icon_name):
     )
     return icon
 
+class NetworkThread(threading.Thread): 
+    def __init__(self, thread_name, thread_ID, data): 
+        threading.Thread.__init__(self) 
+        self.thread_name = thread_name 
+        self.thread_ID = thread_ID
+        self.data = data
+ 
+        # helper function to execute the threads
+    def run(self):
+        print("Now running network thread")
+        import yarp
+        yarp.Network.init()
+        loggingInput = yarp.BufferedPortBottle()
+        loggingInput.open("/visualizerInput")
+        yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
+        success = loggingInput.read()
+        if not success:
+            print("Failed")
+        else:
+            import json
+            while True:
+                output = str(success.toString())
+                # json.loads is done twice, the 1st time is to remove \\ character
+                # the 2nd time actually converts the string to the dictionary
+                dicOutput = json.loads(json.loads(output))
+                print("Output Type:")
+                print(type(dicOutput))
+                print("Result dictionary:")
+                print(dicOutput)
+                print(dicOutput["robot_realtime"]["FTs"])
+        yarp.Network.fini()
+        print("Thread completed")
+
+
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __init__(self, signal_provider, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
+
+        # for realtime logging
+        self.realtimeLoggerActive = False
+        self.realtimePlotUpdaterThreadActive = False
 
         self.animation_period = animation_period
 
@@ -224,6 +265,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.pythonWidgetLayout.addWidget(self.pyconsole)
         self.pyconsole.eval_in_thread()
 
+
         # self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         # self.media_player.setVideoOutput(self.ui.webcamView)
         # self.media_loaded = False
@@ -288,6 +330,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
 
+    def realtimeUpdatePlots(self):
+        while True:
+            print("In plotter thread")
+            for plot in self.plot_items:
+                plot.updatePlotItem(signal_provider=self.signal_provider, period=self.animation_period)
+
     def toolButton_on_click(self):
         self.plot_items.append(
             PlotItem(signal_provider=self.signal_provider, period=self.animation_period)
@@ -298,6 +346,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.tabPlotWidget.setTabsClosable(False)
         else:
             self.ui.tabPlotWidget.setTabsClosable(True)
+
+        """if self.realtimeLoggerActive and not self.realtimePlotUpdaterThreadActive:
+            print("Now launching plotter thread")
+            self.plotUpdater = threading.Thread(target=self.realtimeUpdatePlots)
+            self.plotUpdater.start()
+            self.realtimePlotUpdaterThreadActive = True
+        """
 
     def timeSlider_on_pressed(self):
         self.slider_pressed = True
@@ -390,9 +445,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
+        print("Adding item to plot")
+        print("Paths:")
+        print(paths)
+        print("Legends:")
+        print(legends)
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
         )
+        print(self.plot_items)
 
     def find_text_log_index(self, path):
         current_time = self.signal_provider.current_time
@@ -637,9 +698,70 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if file_name:
             self.__load_mat_file(file_name)
 
+    def maintain_connection(self):
+        root = None
+        initConnection = False
+        plotCounter = 10
+        init = False
+        counter = 0
+        while True:
+            self.signal_provider.establish_connection()
+            # only display one root in the gui
+            if not initConnection:
+                root = list(self.signal_provider.data.keys())[0]
+                root_item = QTreeWidgetItem([root])
+                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+                initConnection = True
+                items = self.__populate_variable_tree_widget(
+                    self.signal_provider.data[root], root_item
+                )
+                self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+            # populate text logging tree
+            if self.signal_provider.text_logging_data:
+                root = list(self.signal_provider.text_logging_data.keys())[0]
+                root_item = QTreeWidgetItem([root])
+                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+                items = self.__populate_text_logging_tree_widget(
+                    self.signal_provider.text_logging_data[root], root_item
+                )
+                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+
+            # spawn the console
+            self.pyconsole.push_local_ns("data", self.signal_provider.data)
+
+            self.ui.timeSlider.setMaximum(self.signal_size)
+            self.ui.startButton.setEnabled(True)
+            self.ui.timeSlider.setEnabled(True)
+
+
+            if counter == plotCounter:
+               # self.plotTabBar_currentChanged(0)
+               # if not init:
+                self.plot_items[0].canvas.update_plots(
+                    np.array([['robot_realtime', 'FTs', 'l_arm_ft', '0']]), np.array([['robot_realtime', 'FTs', 'l_arm_ft', 'Element 0']])
+                )
+                #    init = True
+                #self.plot_items[0].canvas.draw()
+                #self.plotTabBar_currentChanged(0)
+                print("Size of plot items")
+                print(len(self.plot_items))
+                #self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.show()
+
+                counter = 0
+            time.sleep(0.01)
+            counter = counter + 1
+
+            #for plot in self.plot_items:
+            #    plot.updatePlotItem(signal_provider=self.signal_provider, period=self.animation_period)
+
     def connect_realtime_logger(self):
+        self.realtimeLoggerActive = True
         print("Now connecting for real-time logging")
-        self.signal_provider.establish_connection()
+        self.networkThread = threading.Thread(target=self.maintain_connection)
+        self.networkThread.start()
+
+        """self.signal_provider.establish_connection()
         root = list(self.signal_provider.data.keys())[0]
         root_item = QTreeWidgetItem([root])
         root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
@@ -665,6 +787,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.setEnabled(True)
         self.ui.timeSlider.setEnabled(True)
         # for now will hard code the device name to: /testLoggerOutput
+
+        connectionThread = NetworkThread("NetworkThread", 1, self.signal_provider.data)
+        connectionThread.start()
+  #      connectionThread.join()
+        """
         """
         import yarp
         yarp.Network.init()

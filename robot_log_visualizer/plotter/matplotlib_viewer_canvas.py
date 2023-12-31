@@ -69,21 +69,22 @@ class MatplotlibViewerCanvas(FigureCanvas):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
 
-            if path_string not in self.active_paths.keys():
-                data = self.signal_provider.data
-                for key in path[:-1]:
-                    data = data[key]
-                try:
-                    datapoints = data["data"][:, int(path[-1])]
-                except IndexError:
-                    # This happens in the case the variable is a scalar.
-                    datapoints = data["data"][:]
+            #if path_string not in self.active_paths.keys():
+            data = self.signal_provider.data
+            for key in path[:-1]:
+                data = data[key]
+            try:
+                datapoints = data["data"][:, int(path[-1])]
+            except IndexError:
+                # This happens in the case the variable is a scalar.
+                datapoints = data["data"][:]
 
-                timestamps = data["timestamps"] - self.signal_provider.initial_time
+            timestamps = data["timestamps"] - self.signal_provider.initial_time
 
-                (self.active_paths[path_string],) = self.axes.plot(
-                    timestamps, datapoints, label=legend_string
-                )
+            self.axes.cla()
+            (self.active_paths[path_string],) = self.axes.plot(
+                timestamps, datapoints, label=legend_string
+            )
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():

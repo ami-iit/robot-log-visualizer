@@ -736,30 +736,32 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
                 self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
+
             # populate text logging tree
-            if self.signal_provider.text_logging_data:
-                root = list(self.signal_provider.text_logging_data.keys())[0]
-                root_item = QTreeWidgetItem([root])
-                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-                items = self.__populate_text_logging_tree_widget(
-                    self.signal_provider.text_logging_data[root], root_item
-                )
-                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
-
-            # spawn the console
-            self.pyconsole.push_local_ns("data", self.signal_provider.data)
-
-            self.ui.timeSlider.setMaximum(self.signal_size)
-            self.ui.startButton.setEnabled(True)
-            self.ui.timeSlider.setEnabled(True)
 
 
             if counter == plotCounter:
+                self.plottingLock.acquire()
+                if self.signal_provider.text_logging_data:
+                    root = list(self.signal_provider.text_logging_data.keys())[0]
+                    root_item = QTreeWidgetItem([root])
+                    root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+                    items = self.__populate_text_logging_tree_widget(
+                        self.signal_provider.text_logging_data[root], root_item
+                    )
+                    self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+
+                # spawn the console
+                self.pyconsole.push_local_ns("data", self.signal_provider.data)
+
+                self.ui.timeSlider.setMaximum(self.signal_size)
+                self.ui.startButton.setEnabled(True)
+                self.ui.timeSlider.setEnabled(True)
+
                # self.plotTabBar_currentChanged(0)
                # if not init:
                #self.plotData[self.ui.tabPlotWidget.currentIndex()]
                 #print("About to aquire lock for updating the plot")
-                self.plottingLock.acquire()
                 #print("Lock aquired for updating the plot")
                 if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
                     #print("Length of plot_items: " + str(len(self.plot_items)))

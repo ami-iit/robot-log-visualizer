@@ -2,6 +2,7 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
+import sys
 import time
 import math
 import h5py
@@ -12,6 +13,7 @@ from robot_log_visualizer.utils.utils import PeriodicThreadState
 # for real-time logging
 import yarp
 import json
+import mergedeep
 
 
 class TextLoggingMsg:
@@ -148,6 +150,40 @@ class SignalProvider(QThread):
 
         return data
 
+    def convertToNP(self, rawData, input):
+        data = {}
+        for key, value in input.items():
+            #print()
+            #print(input.items())
+            #print()
+            if "data" in value.keys() and "timestamps" in value.keys():
+                data[key] = {}
+                rawData[key]["data"] = np.append(rawData[key]["data"], np.array(value["data"])).reshape(-1, 6)
+                rawData[key]["timestamps"] = np.append(rawData[key]["timestamps"], np.array(value["timestamps"]))#.reshape(-1,1)
+
+                if rawData[key]["timestamps"][0] < self.initial_time:
+                    self.timestamps = rawData[key]["timestamps"]
+                    self.initial_time = self.timestamps[0]
+
+                if rawData[key]["timestamps"][-1] > self.end_time:
+                    self.timestamps = rawData[key]["timestamps"]
+                    self.end_time = self.timestamps[-1]
+
+                if "elements_names" in value.keys():
+                    #elements_names_ref = value["elements_names"]
+                    #data[key]["elements_names"] = [
+                    #    "".join(chr(c[0]) for c in value[ref])
+                    #    for ref in elements_names_ref[0]
+                    #]
+                    rawData[key]["elements_names"] = value["elements_names"]
+
+
+            else:
+                data[key] = self.convertToNP(rawData=rawData[key],input=value)
+
+        return data
+        
+
     # TODO:
     # Make a dummy self.data which populates with data you choose to
     # understand how the plot works
@@ -157,24 +193,54 @@ class SignalProvider(QThread):
     # After send the data from the logger and visualize it right there
     def establish_connection(self):
         key = "l_arm_ft"
+        self.initalFrame = True
         if not self.networkInit:
             yarp.Network.init()
             self.loggingInput = yarp.BufferedPortBottle()
             self.loggingInput.open("/visualizerInput")
             yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
-            self.data = {'robot_realtime': {'FTs': {key: {'data': np.array([np.array([])]), 'timestamps': np.array([])}}}}
+            self.data = {'robot_realtime': {'FTs':
+                                {'l_arm_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'r_arm_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'l_jet_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'r_jet_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'l_foot_front_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'r_foot_front_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'l_foot_rear_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 'r_foot_rear_ft':
+                                 {'data': np.array([np.array([])]), 'timestamps': np.array([])},
+                                 }}}
+            #self.data = {'robot_realtime': {}}
             self.networkInit = True
         success = self.loggingInput.read()
         if not success:
-            print("Failed")
+            print("Failed to read from YARP port")
+            sys.exit(1)
         else:
             rawInput = str(success.toString())
             # json.loads is done twice, the 1st time is to remove \\ character
             # the 2nd time actually converts the string to the dictionary
             input = json.loads(json.loads(rawInput))
-   
-            self.data['robot_realtime']['FTs'][key]["data"] = np.append(self.data['robot_realtime']['FTs'][key]["data"], np.array(input['robot_realtime']['FTs'][key]["data"])).reshape(-1,1)
-            self.data['robot_realtime']['FTs'][key]["timestamps"] = np.append(self.data['robot_realtime']['FTs'][key]["timestamps"], input['robot_realtime']['FTs'][key]["timestamps"])
+            #print("Raw input Received:")
+            #print(input)
+
+
+            self.convertToNP(self.data, input)
+        #    print("Data before")
+        #    print(self.data)
+        #    print("Input")
+        #    print(input)
+        #    mergedeep.merge(self.data, input, strategy=mergedeep.Strategy.ADDITIVE)
+        #    self.data['robot_realtime']['FTs'][key]["data"] = np.append(self.data['robot_realtime']['FTs'][key]["data"], np.array(input['robot_realtime']['FTs'][key]["data"])).reshape(-1,1)
+        #    self.data['robot_realtime']['FTs'][key]["timestamps"] = np.append(self.data['robot_realtime']['FTs'][key]["timestamps"], input['robot_realtime']['FTs'][key]["timestamps"])
+            print("Data after")
             print(self.data)
         #    if (len(self.data['robot_realtime']['FTs'][key]["data"]))
 
@@ -188,14 +254,15 @@ class SignalProvider(QThread):
                         {'data': np.array([[16.04658911, 0.0],  [8.32923841, 5.0], [41.25904926, 10.0]]), 'timestamps': np.array([1.70194892e+09, 1.70194893e+09, 1.70194894e+09,]), 'elements_names': np.array(['f_x', 'f_y'])}} } }
             """
 
-            if self.data['robot_realtime']['FTs'][key]["timestamps"][0] < self.initial_time:
+            """if self.data['robot_realtime']['FTs'][key]["timestamps"][0] < self.initial_time:
                 self.timestamps = self.data['robot_realtime']['FTs'][key]["timestamps"]
                 self.initial_time = self.timestamps[0]
 
             if self.data['robot_realtime']['FTs'][key]["timestamps"][-1] > self.end_time:
                 self.timestamps = self.data['robot_realtime']['FTs'][key]["timestamps"]
                 self.end_time = self.timestamps[-1]
-        
+            """
+                        
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:

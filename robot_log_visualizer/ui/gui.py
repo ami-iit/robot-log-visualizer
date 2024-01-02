@@ -68,6 +68,7 @@ class SetRobotModelDialog(QtWidgets.QDialog):
         self.ui.robotModelToolButton.clicked.connect(self.open_urdf_file)
         self.ui.packageDirToolButton.clicked.connect(self.open_package_directory)
 
+
     def open_urdf_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
             self, "Open urdf file", ".", filter="*.urdf"
@@ -161,6 +162,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # for realtime logging
         self.realtimeLoggerActive = False
         self.realtimePlotUpdaterThreadActive = False
+        self.plotData = {}
 
         self.animation_period = animation_period
 
@@ -414,6 +416,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def plotTabCloseButton_on_click(self, index):
         self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
+        del self.plotData[index]
         del self.plot_items[index]
 
         if self.ui.tabPlotWidget.count() == 1:
@@ -450,6 +453,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print(paths)
         print("Legends:")
         print(legends)
+        self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
         )
@@ -582,8 +586,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 n_cols = 1
 
             # In yarp telemetry v0.4.0 the elements_names was saved.
+            print("About to check element names")
             if "elements_names" in obj.keys():
+                print("There is an element name")
                 for name in obj["elements_names"]:
+                    print(name)
                     item = QTreeWidgetItem([name])
                     parent.addChild(item)
             else:
@@ -738,17 +745,29 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             if counter == plotCounter:
                # self.plotTabBar_currentChanged(0)
                # if not init:
-                self.plot_items[0].canvas.update_plots(
-                    np.array([['robot_realtime', 'FTs', 'l_arm_ft', '0']]), np.array([['robot_realtime', 'FTs', 'l_arm_ft', 'Element 0']])
-                )
+               #self.plotData[self.ui.tabPlotWidget.currentIndex()]
+                if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
+                    print("Length of plot_items: " + str(len(self.plot_items)))
+                    print(self.plot_items)
+                    self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
+                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
+                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"]
+                    )
+                else:
+                    print("Current index: " + str(self.ui.tabPlotWidget.currentIndex()))
+                counter = 0
+                #self.plot_items[0].canvas.update_plots(
+                #    np.array([['robot_realtime', 'FTs', 'l_arm_ft', '0']]), np.array([['robot_realtime', 'FTs', 'l_arm_ft', 'Element 0']])
+                #)
+                #self.plot_items[0].canvas.refresh_plot()
                 #    init = True
                 #self.plot_items[0].canvas.draw()
                 #self.plotTabBar_currentChanged(0)
-                print("Size of plot items")
-                print(len(self.plot_items))
+            #    print(self.plot_items[0].canvas.refresh_plot())
+            #    print("Size of plot items")
+            #    print(len(self.plot_items))
                 #self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.show()
 
-                counter = 0
             time.sleep(0.01)
             counter = counter + 1
 

@@ -163,6 +163,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.realtimeLoggerActive = False
         self.realtimePlotUpdaterThreadActive = False
         self.plotData = {}
+        self.plottingLock = threading.Lock()
 
         self.animation_period = animation_period
 
@@ -414,13 +415,24 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
+        print("About to acquire the lock for closing a plot")
+        self.plottingLock.acquire()
+        print("Lock acquired for closing the plot")
         self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
-        del self.plotData[index]
+        # Update the indexes of plotData before deletion
+        print("Index: " + str(index))
+        print("Length of keys: " + str(len(self.plotData.keys())))
+        for i in range(index, len(self.plotData.keys()) - 1):
+            self.plotData[i] = self.plotData[i + 1]
+        # Remove the last key
+        del self.plotData[list(self.plotData.keys())[-1]]
         del self.plot_items[index]
 
         if self.ui.tabPlotWidget.count() == 1:
             self.ui.tabPlotWidget.setTabsClosable(False)
+        self.plottingLock.release()
+        print("Lock released for closing the plot")
 
     def plotTabBar_on_doubleClick(self, index):
         dlg, plot_title = build_plot_title_box_dialog()
@@ -448,16 +460,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
-        print("Adding item to plot")
-        print("Paths:")
-        print(paths)
-        print("Legends:")
-        print(legends)
+        #print("Adding item to plot")
+        #print("Paths:")
+        #print(paths)
+        #print("Legends:")
+        #print(legends)
         self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
         )
-        print(self.plot_items)
+        #print(self.plot_items)
 
     def find_text_log_index(self, path):
         current_time = self.signal_provider.current_time
@@ -586,9 +598,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 n_cols = 1
 
             # In yarp telemetry v0.4.0 the elements_names was saved.
-            print("About to check element names")
+            #print("About to check element names")
             if "elements_names" in obj.keys():
-                print("There is an element name")
+                #print("There is an element name")
                 for name in obj["elements_names"]:
                     print(name)
                     item = QTreeWidgetItem([name])
@@ -746,16 +758,21 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                # self.plotTabBar_currentChanged(0)
                # if not init:
                #self.plotData[self.ui.tabPlotWidget.currentIndex()]
+                #print("About to aquire lock for updating the plot")
+                self.plottingLock.acquire()
+                #print("Lock aquired for updating the plot")
                 if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
-                    print("Length of plot_items: " + str(len(self.plot_items)))
-                    print(self.plot_items)
+                    #print("Length of plot_items: " + str(len(self.plot_items)))
+                    #print(self.plotData)
                     self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
                     self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
                     self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"]
                     )
-                else:
-                    print("Current index: " + str(self.ui.tabPlotWidget.currentIndex()))
+                #else:
+                    #print("Current index: " + str(self.ui.tabPlotWidget.currentIndex()))
                 counter = 0
+                self.plottingLock.release()
+                #print("Lock released for updating the plot")
                 #self.plot_items[0].canvas.update_plots(
                 #    np.array([['robot_realtime', 'FTs', 'l_arm_ft', '0']]), np.array([['robot_realtime', 'FTs', 'l_arm_ft', 'Element 0']])
                 #)

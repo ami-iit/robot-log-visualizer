@@ -160,8 +160,11 @@ class SignalProvider(QThread):
             #print()
             if "data" in value.keys() and "timestamps" in value.keys():
                 data[key] = {}
-                rawData[key]["data"] = np.append(rawData[key]["data"], np.array(value["data"])).reshape(-1, 6)
-                rawData[key]["timestamps"] = np.append(rawData[key]["timestamps"], np.array(value["timestamps"]))#.reshape(-1,1)
+                print("value[data]: ")
+                print(value["data"])
+                print(len(value["data"]))
+                rawData[key]["data"] = np.append(rawData[key]["data"], np.array(value["data"])).reshape(-1, len(value["data"]))
+                rawData[key]["timestamps"] = np.append(rawData[key]["timestamps"], np.array(value["timestamps"]))
 
                 if rawData[key]["timestamps"][0] < self.initial_time:
                     self.timestamps = rawData[key]["timestamps"]

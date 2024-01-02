@@ -153,6 +153,8 @@ class SignalProvider(QThread):
     def convertToNP(self, rawData, input):
         data = {}
         for key, value in input.items():
+            if key not in rawData.keys():
+                rawData[key] = value
             #print()
             #print(input.items())
             #print()
@@ -199,7 +201,7 @@ class SignalProvider(QThread):
             self.loggingInput = yarp.BufferedPortBottle()
             self.loggingInput.open("/visualizerInput")
             yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
-            self.data = {'robot_realtime': {'FTs':
+            """self.data = {'robot_realtime': {'FTs':
                                 {'l_arm_ft':
                                  {'data': np.array([np.array([])]), 'timestamps': np.array([])},
                                  'r_arm_ft':
@@ -217,6 +219,8 @@ class SignalProvider(QThread):
                                  'r_foot_rear_ft':
                                  {'data': np.array([np.array([])]), 'timestamps': np.array([])},
                                  }}}
+            """
+            
             #self.data = {'robot_realtime': {}}
             self.networkInit = True
         success = self.loggingInput.read()

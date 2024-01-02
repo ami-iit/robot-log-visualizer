@@ -65,6 +65,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.vertical_line_anim._stop()
 
     def update_plots(self, paths, legends):
+        self.axes.cla()
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
@@ -81,7 +82,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
             timestamps = data["timestamps"] - self.signal_provider.initial_time
 
-            self.axes.cla()
             (self.active_paths[path_string],) = self.axes.plot(
                 timestamps, datapoints, label=legend_string
             )

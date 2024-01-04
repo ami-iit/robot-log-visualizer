@@ -152,17 +152,27 @@ class SignalProvider(QThread):
 
     def convertToNP(self, rawData, input):
         data = {}
+        print()
+        print("input items:")
+        print(input.items())
         for key, value in input.items():
             if key not in rawData.keys():
                 rawData[key] = value
             #print()
             #print(input.items())
             #print()
+            print("Value:")
+            print(value)
+            if value is None:
+                continue
+            print("Value.keys")
+            print(value.keys())
+            print()
             if "data" in value.keys() and "timestamps" in value.keys():
                 data[key] = {}
-                print("value[data]: ")
-                print(value["data"])
-                print(len(value["data"]))
+            #    print("value[data]: ")
+            #    print(value["data"])
+            #    print(len(value["data"]))
                 rawData[key]["data"] = np.append(rawData[key]["data"], np.array(value["data"])).reshape(-1, len(value["data"]))
                 rawData[key]["timestamps"] = np.append(rawData[key]["timestamps"], np.array(value["timestamps"]))
 
@@ -247,8 +257,8 @@ class SignalProvider(QThread):
         #    mergedeep.merge(self.data, input, strategy=mergedeep.Strategy.ADDITIVE)
         #    self.data['robot_realtime']['FTs'][key]["data"] = np.append(self.data['robot_realtime']['FTs'][key]["data"], np.array(input['robot_realtime']['FTs'][key]["data"])).reshape(-1,1)
         #    self.data['robot_realtime']['FTs'][key]["timestamps"] = np.append(self.data['robot_realtime']['FTs'][key]["timestamps"], input['robot_realtime']['FTs'][key]["timestamps"])
-            print("Data after")
-            print(self.data)
+        #    print("Data after")
+        #    print(self.data)
         #    if (len(self.data['robot_realtime']['FTs'][key]["data"]))
 
 

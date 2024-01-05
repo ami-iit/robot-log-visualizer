@@ -125,10 +125,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         super().__init__()
 
         # for realtime logging
-        self.realtimeLoggerActive = False
         self.realtimePlotUpdaterThreadActive = False
         self.plotData = {}
         self.plottingLock = threading.Lock()
+        self.realtimeConnectionEnabled = False
 
         self.animation_period = animation_period
 
@@ -527,6 +527,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider.wait()
 
         event.accept()
+        self.realtimeConnectionEnabled = False
+        self.networkThread.join()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
@@ -657,11 +659,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.__load_mat_file(file_name)
 
     def maintain_connection(self, root):
-    #    root = None
-    #    initConnection = False
         plotCounter = 10
         counter = 0
-        while True:
+        while self.realtimeConnectionEnabled:
             self.signal_provider.establish_connection()
 
             # populate text logging tree
@@ -696,7 +696,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.meshcat_provider.updateMesh()
 
     def connect_realtime_logger(self):
-        self.realtimeLoggerActive = True
+        self.realtimeConnectionEnabled = True
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data
@@ -712,8 +712,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
 
         # load the model
-        self.signal_provider.joints_name = ['neck_pitch', 'neck_roll', 'neck_yaw', 'torso_pitch', 'torso_roll', 'torso_yaw', 'l_shoulder_pitch', 'l_shoulder_roll', 'l_shoulder_yaw', 'l_elbow', 'r_shoulder_pitch', 'r_shoulder_roll', 'r_shoulder_yaw', 'r_elbow', 'l_hip_pitch', 'l_hip_roll', 'l_hip_yaw', 'l_knee', 'l_ankle_pitch', 'l_ankle_roll', 'r_hip_pitch', 'r_hip_roll', 'r_hip_yaw', 'r_knee', 'r_ankle_pitch', 'r_ankle_roll']
-        self.signal_provider.robot_name = "iRonCub-Mk3_Gazebo"
+        self.signal_provider.joints_name = self.signal_provider.data["robot_realtime"]["description_list"]
+        self.signal_provider.robot_name = self.signal_provider.data["robot_realtime"]["yarp_robot_name"][0]
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name
         ):

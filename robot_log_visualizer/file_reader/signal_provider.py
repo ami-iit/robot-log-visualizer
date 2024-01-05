@@ -60,6 +60,7 @@ class SignalProvider(QThread):
         self.robot_name = ""
 
         self.root_name = "robot_logger_device"
+        #self.root_name = "robot_realtime"
 
         self._current_time = 0
 
@@ -155,7 +156,12 @@ class SignalProvider(QThread):
         for key, value in input.items():
             if key not in rawData.keys():
                 rawData[key] = value
+            elif key == "description_list" or key == "yarp_robot_name":
+                continue
             # TODO: Understand why this check below is needed
+            # print("Value:")
+            # print(value)
+            # print()
             if value is None:
                 continue
 
@@ -203,6 +209,7 @@ class SignalProvider(QThread):
             # the 2nd time actually converts the string to the dictionary
             input = json.loads(json.loads(rawInput))
             self.__populateRealtimeLoggerData(self.data, input)
+            self.joints_name = self.data["robot_realtime"]["description_list"]
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:

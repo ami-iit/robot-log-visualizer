@@ -164,3 +164,18 @@ class MeshcatProvider(QThread):
 
             if self.state == PeriodicThreadState.closed:
                 return
+
+    def updateMesh(self):
+        base_rotation = np.eye(3)
+        base_position = np.array([0.0, 0.0, 0.0])
+
+        self._signal_provider.index = len(self._signal_provider.timestamps) - 1
+        # These are the robot measured joint positions in radians
+        self.meshcat_visualizer.set_multibody_system_state(
+            base_position,
+            base_rotation,
+            joint_value=self._signal_provider.get_joints_position_at_index(
+                self._signal_provider.index
+            )[self.model_joints_index],
+            model_name="robot",
+        )

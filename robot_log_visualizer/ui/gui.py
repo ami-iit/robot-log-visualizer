@@ -348,7 +348,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
         self.signal_provider.state = PeriodicThreadState.running
-        # self.meshcat_provider.state = PeriodicThreadState.running
+        self.meshcat_provider.state = PeriodicThreadState.running
 
         self.logger.write_to_log("Dataset started.")
 
@@ -361,19 +361,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 video_item.media_player.pause()
 
         self.signal_provider.state = PeriodicThreadState.pause
-        # self.meshcat_provider.state = PeriodicThreadState.pause
+        self.meshcat_provider.state = PeriodicThreadState.pause
 
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
-        print("About to acquire the lock for closing a plot")
         self.plottingLock.acquire()
-        print("Lock acquired for closing the plot")
         self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
+
         # Update the indexes of plotData before deletion
-        print("Index: " + str(index))
-        print("Length of keys: " + str(len(self.plotData.keys())))
         for i in range(index, len(self.plotData.keys()) - 1):
             self.plotData[i] = self.plotData[i + 1]
         # Remove the last key
@@ -383,7 +380,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if self.ui.tabPlotWidget.count() == 1:
             self.ui.tabPlotWidget.setTabsClosable(False)
         self.plottingLock.release()
-        print("Lock released for closing the plot")
 
     def plotTabBar_on_doubleClick(self, index):
         dlg, plot_title = build_plot_title_box_dialog()
@@ -546,7 +542,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             # In yarp telemetry v0.4.0 the elements_names was saved.
             if "elements_names" in obj.keys():
                 for name in obj["elements_names"]:
-                    print(name)
                     item = QTreeWidgetItem([name])
                     parent.addChild(item)
             else:
@@ -661,29 +656,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if file_name:
             self.__load_mat_file(file_name)
 
-    def maintain_connection(self):
-        root = None
-        initConnection = False
+    def maintain_connection(self, root):
+    #    root = None
+    #    initConnection = False
         plotCounter = 10
-        init = False
         counter = 0
         while True:
             self.signal_provider.establish_connection()
-            # only display one root in the gui
-            if not initConnection:
-                root = list(self.signal_provider.data.keys())[0]
-                root_item = QTreeWidgetItem([root])
-                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-                initConnection = True
-                items = self.__populate_variable_tree_widget(
-                    self.signal_provider.data[root], root_item
-                )
-                self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
-
 
             # populate text logging tree
-
-
             if counter == plotCounter:
                 self.plottingLock.acquire()
                 if self.signal_provider.text_logging_data:
@@ -712,11 +693,40 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             time.sleep(0.01)
             counter = counter + 1
+            self.meshcat_provider.updateMesh()
 
     def connect_realtime_logger(self):
         self.realtimeLoggerActive = True
         print("Now connecting for real-time logging")
-        self.networkThread = threading.Thread(target=self.maintain_connection)
+
+        # Do initial connection to populate the necessary data
+        self.signal_provider.establish_connection()
+        # only display one root in the gui
+        root = list(self.signal_provider.data.keys())[0]
+        root_item = QTreeWidgetItem([root])
+        root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+        items = self.__populate_variable_tree_widget(
+            self.signal_provider.data[root], root_item
+        )
+        self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+
+        # load the model
+        self.signal_provider.joints_name = ['neck_pitch', 'neck_roll', 'neck_yaw', 'torso_pitch', 'torso_roll', 'torso_yaw', 'l_shoulder_pitch', 'l_shoulder_roll', 'l_shoulder_yaw', 'l_elbow', 'r_shoulder_pitch', 'r_shoulder_roll', 'r_shoulder_yaw', 'r_elbow', 'l_hip_pitch', 'l_hip_roll', 'l_hip_yaw', 'l_knee', 'l_ankle_pitch', 'l_ankle_roll', 'r_hip_pitch', 'r_hip_roll', 'r_hip_yaw', 'r_knee', 'r_ankle_pitch', 'r_ankle_roll']
+        self.signal_provider.robot_name = "iRonCub-Mk3_Gazebo"
+        if not self.meshcat_provider.load_model(
+            self.signal_provider.joints_name, self.signal_provider.robot_name
+        ):
+            # if not loaded we print an error but we continue
+            msg = "Unable to load the model: "
+            if self.meshcat_provider.custom_model_path:
+                msg = msg + self.meshcat_provider.custom_model_path
+            else:
+                msg = msg + self.signal_provider.robot_name
+
+            self.logger.write_to_log(msg)
+        
+        self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))
         self.networkThread.start()
 
     def open_about(self):

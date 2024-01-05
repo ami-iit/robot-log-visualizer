@@ -150,7 +150,7 @@ class SignalProvider(QThread):
 
         return data
 
-    def convertToNP(self, rawData, input):
+    def __populateRealtimeLoggerData(self, rawData, input):
         data = {}
         for key, value in input.items():
             if key not in rawData.keys():
@@ -177,13 +177,13 @@ class SignalProvider(QThread):
 
 
             else:
-                data[key] = self.convertToNP(rawData=rawData[key],input=value)
+                data[key] = self.__populateRealtimeLoggerData(rawData=rawData[key],input=value)
 
         return data
         
 
     def establish_connection(self):
-        key = "l_arm_ft"
+        self.root_name = "robot_realtime"
         self.initalFrame = True
         if not self.networkInit:
             yarp.Network.init()
@@ -194,27 +194,21 @@ class SignalProvider(QThread):
             self.networkInit = True
         success = self.loggingInput.read()
         if not success:
-            print("Failed to read from YARP port")
+            print("Failed to read realtime YARP port, closing")
             sys.exit(1)
         else:
             rawInput = str(success.toString())
-            # json.loads is done twice, the 1st time is to remove \\ character
+
+            # json.loads is done twice, the 1st time is to remove escape characters
             # the 2nd time actually converts the string to the dictionary
             input = json.loads(json.loads(rawInput))
-            self.convertToNP(self.data, input)
+            self.__populateRealtimeLoggerData(self.data, input)
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
-        #    print("mat file items")
-        #    print(file.items())
+
             root_variable = file.get(self.root_name)
             self.data = self.__populate_numerical_data(file)
-        #    print("Root Variable:")
-        #    print(root_variable)
-        #    print("MAT file keys:")
-        #    print(file.keys())
-        #    print("Root name keys:")
-        #    print(root_variable.keys())
 
             if "log" in root_variable.keys():
                 self.text_logging_data["log"] = self.__populate_text_logging_data(
@@ -237,8 +231,6 @@ class SignalProvider(QThread):
                 except:
                     pass
             self.index = 0
-            print("Data:")
-            print(self.data)
 
     def __len__(self):
         return self.timestamps.shape[0]

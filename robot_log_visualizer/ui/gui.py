@@ -22,7 +22,12 @@ from robot_log_visualizer.ui.plot_item import PlotItem
 from robot_log_visualizer.ui.video_item import VideoItem
 from robot_log_visualizer.ui.text_logging import TextLoggingItem
 
-from robot_log_visualizer.utils.utils import PeriodicThreadState
+from robot_log_visualizer.utils.utils import (
+    PeriodicThreadState,
+    RobotStatePath,
+    ColorPalette,
+    Color,
+)
 
 import sys
 import os
@@ -159,6 +164,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.plot_items = []
         self.video_items = []
+        self.visualized_3d_points = set()
+        self.visualized_3d_points_colors_palette = ColorPalette()
 
         self.toolButton_on_click()
 
@@ -181,7 +188,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.actionSet_Robot_Model.triggered.connect(self.open_set_robot_model)
 
         self.ui.meshcatView.setUrl(
-            QUrl(meshcat_provider.meshcat_visualizer.viewer.url())
+            QUrl(meshcat_provider._meshcat_visualizer.viewer.url())
         )
 
         self.ui.pauseButton.clicked.connect(self.pauseButton_on_click)
@@ -202,6 +209,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.plotTabBar_on_doubleClick
         )
         self.ui.tabPlotWidget.currentChanged.connect(self.plotTabBar_currentChanged)
+
+        # add a custom context menu to the variable tree widget
+        self.ui.variableTreeWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.variableTreeWidget.customContextMenuRequested.connect(
+            self.variableTreeWidget_on_right_click
+        )
+
+        self.robot_state_path = RobotStatePath()
 
         self.pyconsole = PythonConsole(
             parent=self.ui.pythonWidget,
@@ -389,6 +404,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
+
+        # if there is no selection we do nothing
+        if not paths:
+            return
+
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
         )
@@ -668,6 +688,158 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def variableTreeWidget_on_right_click(self, item_position):
+        # check if the variable tree widget is empty
+        if self.ui.variableTreeWidget.topLevelItemCount() == 0:
+            menu = QtWidgets.QMenu()
+            menu.addAction("Open a mat file")
+            action = menu.exec_(self.ui.variableTreeWidget.mapToGlobal(item_position))
+            if action is None:
+                return
+            if action.text() == "Open a mat file":
+                self.open_mat_file()
+
+            return
+
+        # find the item from the position
+        item = self.ui.variableTreeWidget.itemAt(item_position)
+        if item is None:
+            return
+
+        if item.childCount() == 0:
+            return
+
+        # the child has to be a leaf
+        if item.child(0).childCount() != 0:
+            return
+
+        # check the number of children
+        item_size = item.childCount()
+        item_path = self.get_item_path(item)
+        item_key = "/".join(item_path)
+
+        menu = QtWidgets.QMenu()
+
+        add_3d_point_str = "Show as a 3D point"
+        remove_3d_point_str = "Remove the 3D point"
+        use_as_base_position_str = "Use as base position"
+        use_as_base_orientation_str = "Use as base orientation"
+        dont_use_as_base_position_str = "Don't use as base position"
+        dont_use_as_base_orientation_str = "Don't use as base orientation"
+        selected_base_color = QtGui.QColor(255, 0, 0, 127)
+        deselected_base_color = QtGui.QColor(0, 0, 0, 0)
+
+        # in this case we can use the item as 3d point where the z coordinate is set to 0
+        if item_size == 2:
+            if item_key in self.visualized_3d_points:
+                menu.addAction(remove_3d_point_str)
+            else:
+                menu.addAction(add_3d_point_str)
+
+        # in this case we can use the item as base position, base orientation or 3d point
+        if item_size == 3:
+            if item_path == self.robot_state_path.base_position_path:
+                menu.addAction(dont_use_as_base_position_str)
+            else:
+                menu.addAction(use_as_base_position_str)
+
+            if item_path == self.robot_state_path.base_orientation_path:
+                menu.addAction(dont_use_as_base_orientation_str)
+            else:
+                menu.addAction(use_as_base_orientation_str + " (Roll-Pitch-Yaw)")
+
+            menu.addSeparator()
+
+            if item_key in self.visualized_3d_points:
+                menu.addAction(remove_3d_point_str)
+            else:
+                menu.addAction(add_3d_point_str)
+
+        if item_size == 4:
+            if item_path == self.robot_state_path.base_orientation_path:
+                menu.addAction(dont_use_as_base_orientation_str)
+            else:
+                menu.addAction(use_as_base_orientation_str + " (xyzw Quaternion)")
+
+        # show the menu
+        action = menu.exec_(self.ui.variableTreeWidget.mapToGlobal(item_position))
+        if action is None:
+            return
+
+        item_path = self.get_item_path(item)
+
+        if action.text() == add_3d_point_str:
+            color = next(self.visualized_3d_points_colors_palette)
+
+            item.setForeground(0, QtGui.QBrush(QtGui.QColor(color.as_hex())))
+            self.meshcat_provider.register_3d_point(
+                item_key, list(color.as_normalized_rgb())
+            )
+            self.signal_provider.register_3d_point(item_key, item_path)
+            self.visualized_3d_points.add(item_key)
+
+        if action.text() == remove_3d_point_str:
+            self.meshcat_provider.unregister_3d_point(item_key)
+            self.signal_provider.unregister_3d_point(item_key)
+            self.visualized_3d_points.remove(item_key)
+            item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+
+        if (
+            use_as_base_orientation_str in action.text()
+            or action.text() == use_as_base_position_str
+        ):
+            item.setBackground(0, QtGui.QBrush(selected_base_color))
+
+        # check that the action is the one we want
+        if action.text() == use_as_base_position_str:
+            # if base position is already set we remove the color
+            if self.robot_state_path.base_position_path:
+                self.get_item_from_path(
+                    self.robot_state_path.base_position_path
+                ).setBackground(0, QtGui.QBrush(deselected_base_color))
+            self.robot_state_path.base_position_path = item_path
+
+        if use_as_base_orientation_str in action.text():
+            # if base orientation is already set we remove the color
+            if self.robot_state_path.base_orientation_path:
+                self.get_item_from_path(
+                    self.robot_state_path.base_orientation_path
+                ).setBackground(0, QtGui.QBrush(deselected_base_color))
+            self.robot_state_path.base_orientation_path = item_path
+
+        if action.text() == dont_use_as_base_position_str:
+            self.robot_state_path.base_position_path = []
+            # if the item is used as base orientation we do not remove the color
+            if item_path != self.robot_state_path.base_orientation_path:
+                item.setBackground(0, QtGui.QBrush(deselected_base_color))
+
+        if action.text() == dont_use_as_base_orientation_str:
+            self.robot_state_path.base_orientation_path = []
+            # if the item is used as base position we do not remove the color
+            if item_path != self.robot_state_path.base_position_path:
+                item.setBackground(0, QtGui.QBrush(deselected_base_color))
+
+        # we update the robot state path
+        self.signal_provider.robot_state_path = self.robot_state_path
+
+    def get_item_from_path(self, path):
+        item = self.ui.variableTreeWidget.topLevelItem(0)
+        for subpath in path:
+            # find the item given its name
+            for child_id in range(item.childCount()):
+                if item.child(child_id).text(0) == subpath:
+                    item = item.child(child_id)
+                    break
+        return item
+
+    def get_item_path(self, item):
+        path = []
+        while item.parent() is not None:
+            path.append(item.text(0))
+            item = item.parent()
+        path.reverse()
+        return path
 
 
 class Logger:

@@ -747,7 +747,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             if item_path == self.robot_state_path.base_orientation_path:
                 menu.addAction(dont_use_as_base_orientation_str)
             else:
-                menu.addAction(use_as_base_orientation_str)
+                menu.addAction(use_as_base_orientation_str + " (Roll-Pitch-Yaw)")
 
             menu.addSeparator()
 
@@ -760,7 +760,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             if item_path == self.robot_state_path.base_orientation_path:
                 menu.addAction(dont_use_as_base_orientation_str)
             else:
-                menu.addAction(use_as_base_orientation_str)
+                menu.addAction(use_as_base_orientation_str + " (xyzw Quaternion)")
 
         # show the menu
         action = menu.exec_(self.ui.variableTreeWidget.mapToGlobal(item_position))
@@ -786,7 +786,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
 
         if (
-            action.text() == use_as_base_orientation_str
+            use_as_base_orientation_str in action.text()
             or action.text() == use_as_base_position_str
         ):
             item.setBackground(0, QtGui.QBrush(selected_base_color))
@@ -800,7 +800,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 ).setBackground(0, QtGui.QBrush(deselected_base_color))
             self.robot_state_path.base_position_path = item_path
 
-        if action.text() == use_as_base_orientation_str:
+        if use_as_base_orientation_str in action.text():
             # if base orientation is already set we remove the color
             if self.robot_state_path.base_orientation_path:
                 self.get_item_from_path(

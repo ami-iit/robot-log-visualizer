@@ -197,8 +197,6 @@ class SignalProvider(QThread):
         
 
     def establish_connection(self):
-        self.root_name = "robot_realtime"
-        self.initalFrame = True
         if not self.networkInit:
             yarp.Network.init()
             self.loggingInput = yarp.BufferedPortBottle()

@@ -697,6 +697,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def connect_realtime_logger(self):
         self.realtimeConnectionEnabled = True
+        self.signal_provider.root_name = "robot_realtime"
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data

@@ -13,7 +13,6 @@ from robot_log_visualizer.utils.utils import PeriodicThreadState
 # for real-time logging
 import yarp
 import json
-import mergedeep
 
 
 class TextLoggingMsg:
@@ -158,10 +157,7 @@ class SignalProvider(QThread):
                 rawData[key] = value
             elif key == "description_list" or key == "yarp_robot_name":
                 continue
-            # TODO: Understand why this check below is needed
-            # print("Value:")
-            # print(value)
-            # print()
+ 
             if value is None:
                 continue
 

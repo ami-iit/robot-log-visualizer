@@ -165,6 +165,7 @@ class MeshcatProvider(QThread):
             if self.state == PeriodicThreadState.closed:
                 return
 
+    # For the real-time logger
     def updateMesh(self):
         base_rotation = np.eye(3)
         base_position = np.array([0.0, 0.0, 0.0])

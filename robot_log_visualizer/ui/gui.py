@@ -729,6 +729,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))
         self.networkThread.start()
 
+
     def open_about(self):
         self.about.show()
 

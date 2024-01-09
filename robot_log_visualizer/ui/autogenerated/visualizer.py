@@ -94,6 +94,7 @@ class Ui_MainWindow(object):
         self.variableTreeWidget.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.variableTreeWidget.setSizeIncrement(QtCore.QSize(0, 0))
         self.variableTreeWidget.setBaseSize(QtCore.QSize(0, 0))
+        self.variableTreeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.variableTreeWidget.setFrameShape(QtWidgets.QFrame.Box)
         self.variableTreeWidget.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         self.variableTreeWidget.setAnimated(True)

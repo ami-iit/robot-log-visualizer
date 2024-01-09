@@ -8,7 +8,8 @@ import math
 import h5py
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
-from robot_log_visualizer.utils.utils import PeriodicThreadState
+from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
+import idyntree.swig as idyn
 
 # for real-time logging
 import yarp
@@ -45,6 +46,12 @@ class SignalProvider(QThread):
 
         self._index = 0
         self.index_lock = QMutex()
+
+        self._robot_state_path = RobotStatePath()
+        self.robot_state_path_lock = QMutex()
+
+        self._3d_points_path = {}
+        self._3d_points_path_lock = QMutex()
 
         self.period = period
 
@@ -276,6 +283,17 @@ class SignalProvider(QThread):
         locker = QMutexLocker(self.index_lock)
         self._index = index
 
+    @property
+    def robot_state_path(self):
+        locker = QMutexLocker(self.robot_state_path_lock)
+        value = self._robot_state_path
+        return value
+
+    @robot_state_path.setter
+    def robot_state_path(self, robot_state_path):
+        locker = QMutexLocker(self.robot_state_path_lock)
+        self._robot_state_path = robot_state_path
+
     def register_update_index(self, slot):
         self.update_index_signal.connect(slot)
 
@@ -293,18 +311,98 @@ class SignalProvider(QThread):
         value = self._current_time
         return value
 
-    def get_joints_position(self):
-        return self.data[self.root_name]["joints_state"]["positions"]["data"]
+    def get_item_from_path(self, path, default_path=None):
+        data = self.data[self.root_name]
 
-    def get_joints_position_at_index(self, index):
-        joints_position_timestamps = self.data[self.root_name]["joints_state"][
-            "positions"
-        ]["timestamps"]
-        # given the index find the closest timestamp
-        closest_index = np.argmin(
-            np.abs(joints_position_timestamps - self.timestamps[index])
+        if not path:
+            if default_path is None:
+                return None, None
+            else:
+                for key in default_path:
+                    data = data[key]
+                return data["data"], data["timestamps"]
+
+        for key in path:
+            data = data[key]
+
+        return data["data"], data["timestamps"]
+
+    def get_item_from_path_at_index(self, path, index, default_path=None):
+        data, timestamps = self.get_item_from_path(path, default_path)
+        if data is None:
+            return None
+        closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
+        return data[closest_index, :]
+
+    def get_robot_state_at_index(self, index):
+        robot_state = {}
+
+        self.robot_state_path_lock.lock()
+        robot_state["joints_position"] = self.get_item_from_path_at_index(
+            self._robot_state_path.joints_state_path,
+            index,
+            default_path=["joints_state", "positions"],
         )
-        return self.get_joints_position()[closest_index, :]
+
+        robot_state["base_position"] = self.get_item_from_path_at_index(
+            self._robot_state_path.base_position_path, index
+        )
+
+        robot_state["base_orientation"] = self.get_item_from_path_at_index(
+            self._robot_state_path.base_orientation_path, index
+        )
+        self.robot_state_path_lock.unlock()
+
+        if robot_state["base_position"] is None:
+            robot_state["base_position"] = np.zeros(3)
+
+        if robot_state["base_orientation"] is None:
+            robot_state["base_orientation"] = np.zeros(3)
+
+        # check the size of the base_orientation if 3 we assume is store ad rpy otherwise as a quaternion we need to convert it in a rotation matrix
+        if robot_state["base_orientation"].shape[0] == 3:
+            robot_state["base_orientation"] = idyn.Rotation.RPY(
+                robot_state["base_orientation"][0],
+                robot_state["base_orientation"][1],
+                robot_state["base_orientation"][2],
+            ).toNumPy()
+        if robot_state["base_orientation"].shape[0] == 4:
+            # convert the x y z w quaternion into w x y z
+            tmp_quat = robot_state["base_orientation"]
+            tmp_quat = np.array([tmp_quat[3], tmp_quat[0], tmp_quat[1], tmp_quat[2]])
+
+            robot_state["base_orientation"] = idyn.Rotation.RotationFromQuaternion(
+                tmp_quat
+            ).toNumPy()
+
+        return robot_state
+
+    def get_3d_point_at_index(self, index):
+        points = {}
+
+        self._3d_points_path_lock.lock()
+
+        for key, value in self._3d_points_path.items():
+            # force the size of the points to be 3 if less than 3 we assume that the point is a 2d point and we add a 0 as z coordinate
+            points[key] = self.get_item_from_path_at_index(value, index)
+            if points[key].shape[0] < 3:
+                points[key] = np.concatenate(
+                    (points[key], np.zeros(3 - points[key].shape[0]))
+                )
+
+        self._3d_points_path_lock.unlock()
+
+        return points
+
+    def register_3d_point(self, key, points_path):
+        self._3d_points_path_lock.lock()
+        self._3d_points_path[key] = points_path
+        self._3d_points_path_lock.unlock()
+
+    def unregister_3d_point(self, key):
+        self._3d_points_path_lock.lock()
+        del self._3d_points_path[key]
+        self._3d_points_path_lock.unlock()
 
     def run(self):
         while True:

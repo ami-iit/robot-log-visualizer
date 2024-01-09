@@ -25,13 +25,16 @@ class MeshcatProvider(QThread):
         self.state_lock = QMutex()
 
         self._period = period
-        self.meshcat_visualizer = MeshcatVisualizer()
+        self._meshcat_visualizer = MeshcatVisualizer()
+        self.meshcat_visualizer_mutex = QMutex()
+
         self._is_model_loaded = False
         self._signal_provider = signal_provider
 
         self.custom_model_path = ""
         self.custom_package_dir = ""
         self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
+        self._registered_3d_points = set()
 
     @property
     def state(self):
@@ -43,6 +46,19 @@ class MeshcatProvider(QThread):
     def state(self, new_state: PeriodicThreadState):
         locker = QMutexLocker(self.state_lock)
         self._state = new_state
+
+    def register_3d_point(self, point_path, color):
+        radius = 0.02
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._registered_3d_points.add(point_path)
+        self._meshcat_visualizer.load_sphere(
+            radius=radius, color=color, shape_name=point_path
+        )
+
+    def unregister_3d_point(self, point_path):
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._registered_3d_points.remove(point_path)
+        self._meshcat_visualizer.delete(shape_name=point_path)
 
     def load_model(self, considered_joints, model_name):
         def get_model_path_from_envs(env_list):
@@ -132,7 +148,7 @@ class MeshcatProvider(QThread):
         if not model_loader.isValid():
             return False
 
-        self.meshcat_visualizer.load_model(
+        self._meshcat_visualizer.load_model(
             model_loader.model(), model_name="robot", color=0.8
         )
 
@@ -141,22 +157,36 @@ class MeshcatProvider(QThread):
         return True
 
     def run(self):
-        base_rotation = np.eye(3)
-        base_position = np.array([0.0, 0.0, 0.0])
+        identity = np.eye(3)
 
         while True:
             start = time.time()
 
             if self.state == PeriodicThreadState.running and self._is_model_loaded:
+                robot_state = self._signal_provider.get_robot_state_at_index(
+                    self._signal_provider.index
+                )
+
+                self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians
-                self.meshcat_visualizer.set_multibody_system_state(
-                    base_position,
-                    base_rotation,
-                    joint_value=self._signal_provider.get_joints_position_at_index(
-                        self._signal_provider.index
-                    )[self.model_joints_index],
+                self._meshcat_visualizer.set_multibody_system_state(
+                    base_position=robot_state["base_position"],
+                    base_rotation=robot_state["base_orientation"],
+                    joint_value=robot_state["joints_position"][self.model_joints_index],
                     model_name="robot",
                 )
+
+                for points_path, points in self._signal_provider.get_3d_point_at_index(
+                    self._signal_provider.index
+                ).items():
+                    if points_path not in self._registered_3d_points:
+                        continue
+
+                    self._meshcat_visualizer.set_primitive_geometry_transform(
+                        position=points, rotation=identity, shape_name=points_path
+                    )
+
+                self.meshcat_visualizer_mutex.unlock()
 
             sleep_time = self._period - (time.time() - start)
             if sleep_time > 0:

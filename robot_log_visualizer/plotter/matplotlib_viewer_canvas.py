@@ -37,8 +37,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.axes.set_ylabel("value")
         self.axes.grid(True)
 
-        self.realtimeFixedXMax = 20
-
         # start the vertical line animation
         (self.vertical_line,) = self.axes.plot([], [], "-", lw=1, c="k")
 
@@ -101,7 +99,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths.pop(path)
 
         if realtimePlot:
-            self.axes.set_xlim(1, self.realtimeFixedXMax)
+            self.axes.set_xlim(0, self.signal_provider.realtimeFixedPlotWindow)
         else:
             self.axes.set_xlim(
                 0, self.signal_provider.end_time - self.signal_provider.initial_time

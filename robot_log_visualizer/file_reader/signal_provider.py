@@ -63,6 +63,7 @@ class SignalProvider(QThread):
         self._current_time = 0
 
         self.realtimeBufferReached = False
+        self.realtimeFixedPlotWindow = 20
 
         # for networking with the real-time logger
         self.networkInit = False
@@ -175,11 +176,11 @@ class SignalProvider(QThread):
                     self.timestamps = rawData[key]["timestamps"]
                     self.end_time = self.timestamps[-1]
 
-                if self.end_time - self.initial_time >= 20:
+                if self.end_time - self.initial_time >= self.realtimeFixedPlotWindow:
                     self.realtimeBufferReached = True
                     tempInitialTime = self.initial_time
                     tempEndTime = self.end_time
-                    while tempEndTime - tempInitialTime >= 20:
+                    while tempEndTime - tempInitialTime >= self.realtimeFixedPlotWindow:
                         rawData[key]["data"] = np.delete(rawData[key]["data"], 0, axis=0)
                         rawData[key]["timestamps"] = np.delete(rawData[key]["timestamps"], 0)
                         tempInitialTime = rawData[key]["timestamps"][0]

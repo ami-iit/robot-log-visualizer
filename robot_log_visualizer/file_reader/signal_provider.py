@@ -216,6 +216,11 @@ class SignalProvider(QThread):
             # the 2nd time actually converts the string to the dictionary
             input = json.loads(json.loads(rawInput))
             self.__populateRealtimeLoggerData(self.data, input)
+            if self.realtimeBufferReached:
+                self.initial_time = self.timestamps[0]
+                self.end_time = self.timestamps[-1]
+                self.timestamps = np.delete(self.timestamps, 0)
+                self.realtimeBufferReached = False
             self.joints_name = self.data["robot_realtime"]["description_list"]
 
     def open_mat_file(self, file_name: str):

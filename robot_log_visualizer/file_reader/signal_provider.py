@@ -153,7 +153,7 @@ class SignalProvider(QThread):
                         "".join(chr(c[0]) for c in value[ref])
                         for ref in elements_names_ref[0]
                     ]
-                
+
             else:
                 data[key] = self.__populate_numerical_data(file_object=value)
 
@@ -166,7 +166,7 @@ class SignalProvider(QThread):
                 rawData[key] = value
             elif key == "description_list" or key == "yarp_robot_name":
                 continue
- 
+
             if value is None:
                 continue
 
@@ -201,7 +201,7 @@ class SignalProvider(QThread):
                 data[key] = self.__populateRealtimeLoggerData(rawData=rawData[key],input=value)
 
         return data
-        
+
 
     def establish_connection(self):
         if not self.networkInit:
@@ -209,7 +209,7 @@ class SignalProvider(QThread):
             self.loggingInput = yarp.BufferedPortBottle()
             self.loggingInput.open("/visualizerInput:i")
             yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
-            
+
             self.networkInit = True
         success = self.loggingInput.read(shouldWait=False)
         if not success:

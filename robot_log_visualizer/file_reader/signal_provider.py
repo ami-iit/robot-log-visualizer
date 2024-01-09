@@ -200,14 +200,14 @@ class SignalProvider(QThread):
         if not self.networkInit:
             yarp.Network.init()
             self.loggingInput = yarp.BufferedPortBottle()
-            self.loggingInput.open("/visualizerInput")
-            yarp.Network.connect("/testLoggerOutput", "/visualizerInput")
+            self.loggingInput.open("/visualizerInput:i")
+            yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
             
             self.networkInit = True
-        success = self.loggingInput.read()
+        success = self.loggingInput.read(shouldWait=False)
         if not success:
             print("Failed to read realtime YARP port, closing")
-            sys.exit(1)
+            return False
         else:
             rawInput = str(success.toString())
 
@@ -221,6 +221,7 @@ class SignalProvider(QThread):
                 self.timestamps = np.delete(self.timestamps, 0)
                 self.realtimeBufferReached = False
             self.joints_name = self.data["robot_realtime"]["description_list"]
+            return True
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:

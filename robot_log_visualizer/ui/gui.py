@@ -46,6 +46,8 @@ import pyqtconsole.highlighter as hl
 
 import time
 
+import yarp
+
 
 class SetRobotModelDialog(QtWidgets.QDialog):
     def __init__(
@@ -664,8 +666,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.__load_mat_file(file_name)
 
     def maintain_connection(self, root):
-        while self.realtimeConnectionEnabled:
-            self.signal_provider.establish_connection()
+        while self.realtimeConnectionEnabled and yarp.Network.exists("/YARPRobotLoggerRT:o"):
+            if not self.signal_provider.establish_connection():
+                continue
 
             # populate text logging tree
             self.plottingLock.acquire()
@@ -701,7 +704,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data
-        self.signal_provider.establish_connection()
+        while not self.signal_provider.establish_connection():
+            time.sleep(0.1)
         # only display one root in the gui
         root = list(self.signal_provider.data.keys())[0]
         root_item = QTreeWidgetItem([root])

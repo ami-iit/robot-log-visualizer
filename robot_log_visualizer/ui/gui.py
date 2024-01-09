@@ -6,7 +6,7 @@
 import threading
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QUrl
-from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
+from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker, QThread
 from PyQt5.QtWidgets import (
     QFileDialog,
     QTreeWidgetItem,
@@ -129,6 +129,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plotData = {}
         self.plottingLock = threading.Lock()
         self.realtimeConnectionEnabled = False
+        self.sleepPeriodBuffer = 0.02
 
         self.animation_period = animation_period
 
@@ -149,6 +150,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
+        self.ui.actionConnect.setIcon(get_icon("connection-outline.png"))
         self.ui.actionOpen.setIcon(get_icon("folder-open-outline.svg"))
         self.ui.actionSet_Robot_Model.setIcon(get_icon("body-outline.svg"))
         self.setWindowIcon(get_icon("icon.png"))
@@ -408,10 +410,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             paths.append(path)
             legends.append(legend)
 
+        self.plottingLock.acquire()
         self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
-            paths, legends
+            paths, legends, self.realtimeConnectionEnabled
         )
+        self.plottingLock.release()
 
     def find_text_log_index(self, path):
         current_time = self.signal_provider.current_time
@@ -527,8 +531,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider.wait()
 
         event.accept()
-        self.realtimeConnectionEnabled = False
-        self.networkThread.join()
+        if self.realtimeConnectionEnabled:
+            self.realtimeConnectionEnabled = False
+            self.networkThread.join()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
@@ -659,40 +664,35 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.__load_mat_file(file_name)
 
     def maintain_connection(self, root):
-        plotCounter = 10
-        counter = 0
         while self.realtimeConnectionEnabled:
             self.signal_provider.establish_connection()
 
             # populate text logging tree
-            if counter == plotCounter:
-                self.plottingLock.acquire()
-                if self.signal_provider.text_logging_data:
-                    root = list(self.signal_provider.text_logging_data.keys())[0]
-                    root_item = QTreeWidgetItem([root])
-                    root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-                    items = self.__populate_text_logging_tree_widget(
-                        self.signal_provider.text_logging_data[root], root_item
-                    )
-                    self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
+            self.plottingLock.acquire()
+            if self.signal_provider.text_logging_data:
+                root = list(self.signal_provider.text_logging_data.keys())[0]
+                root_item = QTreeWidgetItem([root])
+                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+                items = self.__populate_text_logging_tree_widget(
+                    self.signal_provider.text_logging_data[root], root_item
+                )
+                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
 
-                # spawn the console
-                self.pyconsole.push_local_ns("data", self.signal_provider.data)
+            # spawn the console
+            self.pyconsole.push_local_ns("data", self.signal_provider.data)
 
-                self.ui.timeSlider.setMaximum(self.signal_size)
-                self.ui.startButton.setEnabled(True)
-                self.ui.timeSlider.setEnabled(True)
+            self.ui.timeSlider.setMaximum(self.signal_size)
+            self.ui.startButton.setEnabled(True)
+            self.ui.timeSlider.setEnabled(True)
 
-                if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
-                    self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
-                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
-                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"]
-                    )
-                counter = 0
-                self.plottingLock.release()
+            if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
+                self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
+                self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
+                self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"],
+                self.realtimeConnectionEnabled)
+            self.plottingLock.release()
 
-            time.sleep(0.01)
-            counter = counter + 1
+            time.sleep(self.animation_period + self.sleepPeriodBuffer)
             self.meshcat_provider.updateMesh()
 
     def connect_realtime_logger(self):

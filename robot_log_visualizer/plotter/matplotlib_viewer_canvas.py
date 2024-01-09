@@ -3,6 +3,7 @@
 # Released under the terms of the BSD 3-Clause License
 
 # PyQt
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -36,6 +37,8 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.axes.set_ylabel("value")
         self.axes.grid(True)
 
+        self.realtimeFixedXMax = 20
+
         # start the vertical line animation
         (self.vertical_line,) = self.axes.plot([], [], "-", lw=1, c="k")
 
@@ -64,14 +67,14 @@ class MatplotlibViewerCanvas(FigureCanvas):
         if self.vertical_line_anim:
             self.vertical_line_anim._stop()
 
-    def update_plots(self, paths, legends):
+    def update_plots(self, paths, legends, realtimePlot=False):
         self.axes.cla()
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
 
             #if path_string not in self.active_paths.keys():
-            data = self.signal_provider.data
+            data = self.signal_provider.data.copy()
             for key in path[:-1]:
                 data = data[key]
             try:
@@ -97,9 +100,12 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        self.axes.set_xlim(
-            0, self.signal_provider.end_time - self.signal_provider.initial_time
-        )
+        if realtimePlot:
+            self.axes.set_xlim(1, self.realtimeFixedXMax)
+        else:
+            self.axes.set_xlim(
+                0, self.signal_provider.end_time - self.signal_provider.initial_time
+            )
 
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized

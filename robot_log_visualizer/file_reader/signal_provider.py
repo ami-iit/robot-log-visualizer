@@ -59,9 +59,10 @@ class SignalProvider(QThread):
         self.robot_name = ""
 
         self.root_name = "robot_logger_device"
-        #self.root_name = "robot_realtime"
 
         self._current_time = 0
+
+        self.realtimeBufferReached = False
 
         # for networking with the real-time logger
         self.networkInit = False
@@ -173,6 +174,16 @@ class SignalProvider(QThread):
                 if rawData[key]["timestamps"][-1] > self.end_time:
                     self.timestamps = rawData[key]["timestamps"]
                     self.end_time = self.timestamps[-1]
+
+                if self.end_time - self.initial_time >= 20:
+                    self.realtimeBufferReached = True
+                    tempInitialTime = self.initial_time
+                    tempEndTime = self.end_time
+                    while tempEndTime - tempInitialTime >= 20:
+                        rawData[key]["data"] = np.delete(rawData[key]["data"], 0, axis=0)
+                        rawData[key]["timestamps"] = np.delete(rawData[key]["timestamps"], 0)
+                        tempInitialTime = rawData[key]["timestamps"][0]
+                        tempEndTime = rawData[key]["timestamps"][-1]
 
                 if "elements_names" in value.keys():
                     rawData[key]["elements_names"] = value["elements_names"]

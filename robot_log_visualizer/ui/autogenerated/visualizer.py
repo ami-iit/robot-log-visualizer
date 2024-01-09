@@ -283,6 +283,7 @@ class Ui_MainWindow(object):
         self.actionQuit.setText(_translate("MainWindow", "&Quit"))
         self.actionQuit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.actionOpen.setText(_translate("MainWindow", "&Open"))
+        self.actionConnect.setText(_translate("MainWindow", "Realtime Connect"))
         self.actionOpen.setShortcut(_translate("MainWindow", "Ctrl+O"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionSet_Robot_Model.setText(_translate("MainWindow", "Set Robot Model"))

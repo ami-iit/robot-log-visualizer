@@ -430,10 +430,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # if there is no selection we do nothing
         if not paths:
             return
-          
+
         self.plottingLock.acquire()
         self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
-        
+
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends, self.realtimeConnectionEnabled
         )
@@ -750,7 +750,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 msg = msg + self.signal_provider.robot_name
 
             self.logger.write_to_log(msg)
-        
+
         self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))
         self.networkThread.start()
 

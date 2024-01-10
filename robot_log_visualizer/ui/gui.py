@@ -165,6 +165,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plot_items = []
         self.video_items = []
         self.visualized_3d_points = set()
+        self.visualized_3d_trajectories = set()
         self.visualized_3d_points_colors_palette = ColorPalette()
 
         self.toolButton_on_click()
@@ -722,7 +723,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         menu = QtWidgets.QMenu()
 
         add_3d_point_str = "Show as a 3D point"
+        add_3d_trajectory_str = "Show as a 3D trajectory"
         remove_3d_point_str = "Remove the 3D point"
+        remove_3d_trajectory_str = "Remove the 3D trajectory"
         use_as_base_position_str = "Use as base position"
         use_as_base_orientation_str = "Use as base orientation"
         dont_use_as_base_position_str = "Don't use as base position"
@@ -734,8 +737,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if item_size == 2:
             if item_key in self.visualized_3d_points:
                 menu.addAction(remove_3d_point_str)
-            else:
+            if item_key in self.visualized_3d_trajectories:
+                menu.addAction(remove_3d_trajectory_str)
+            if (
+                item_key not in self.visualized_3d_points
+                and item_key not in self.visualized_3d_trajectories
+            ):
                 menu.addAction(add_3d_point_str)
+                menu.addAction(add_3d_trajectory_str)
 
         # in this case we can use the item as base position, base orientation or 3d point
         if item_size == 3:
@@ -753,8 +762,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             if item_key in self.visualized_3d_points:
                 menu.addAction(remove_3d_point_str)
-            else:
+            if item_key in self.visualized_3d_trajectories:
+                menu.addAction(remove_3d_trajectory_str)
+            if (
+                item_key not in self.visualized_3d_points
+                and item_key not in self.visualized_3d_trajectories
+            ):
                 menu.addAction(add_3d_point_str)
+                menu.addAction(add_3d_trajectory_str)
 
         if item_size == 4:
             if item_path == self.robot_state_path.base_orientation_path:
@@ -769,20 +784,34 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         item_path = self.get_item_path(item)
 
-        if action.text() == add_3d_point_str:
+        if action.text() == add_3d_point_str or action.text() == add_3d_trajectory_str:
             color = next(self.visualized_3d_points_colors_palette)
 
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(color.as_hex())))
-            self.meshcat_provider.register_3d_point(
-                item_key, list(color.as_normalized_rgb())
-            )
-            self.signal_provider.register_3d_point(item_key, item_path)
-            self.visualized_3d_points.add(item_key)
+
+            if action.text() == add_3d_point_str:
+                self.meshcat_provider.register_3d_point(
+                    item_key, list(color.as_normalized_rgb())
+                )
+                self.signal_provider.register_3d_point(item_key, item_path)
+                self.visualized_3d_points.add(item_key)
+            else:
+                self.meshcat_provider.register_3d_trajectory(
+                    item_key, list(color.as_normalized_rgb())
+                )
+                self.signal_provider.register_3d_trajectory(item_key, item_path)
+                self.visualized_3d_trajectories.add(item_key)
 
         if action.text() == remove_3d_point_str:
             self.meshcat_provider.unregister_3d_point(item_key)
             self.signal_provider.unregister_3d_point(item_key)
             self.visualized_3d_points.remove(item_key)
+            item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+
+        if action.text() == remove_3d_trajectory_str:
+            self.meshcat_provider.unregister_3d_trajectory(item_key)
+            self.signal_provider.unregister_3d_trajectory(item_key)
+            self.visualized_3d_trajectories.remove(item_key)
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
 
         if (

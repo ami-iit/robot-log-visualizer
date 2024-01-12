@@ -136,6 +136,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plotData = {}
         self.plottingLock = threading.Lock()
         self.realtimeConnectionEnabled = False
+        self.timeoutAttempts = 20
         self.sleepPeriodBuffer = 0.02
 
         self.animation_period = animation_period
@@ -724,8 +725,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data
-        while not self.signal_provider.establish_connection():
+        connectionCounter = 0
+        while not self.signal_provider.establish_connection() and connectionCounter < self.timeoutAttempts:
             time.sleep(0.1)
+            connectionCounter = connectionCounter + 1
+        if connectionCounter == self.timeoutAttempts:
+            print("Failed to connect, connection timeout")
+            return
         self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui
         root = list(self.signal_provider.data.keys())[0]

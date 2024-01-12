@@ -35,6 +35,7 @@ class MeshcatProvider(QThread):
         self.custom_package_dir = ""
         self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
         self._registered_3d_points = set()
+        self._registered_3d_trajectories = dict()
 
     @property
     def state(self):
@@ -55,10 +56,19 @@ class MeshcatProvider(QThread):
             radius=radius, color=color, shape_name=point_path
         )
 
+    def register_3d_trajectory(self, trajectory_path, color):
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._registered_3d_trajectories[trajectory_path] = (False, color)
+
     def unregister_3d_point(self, point_path):
         locker = QMutexLocker(self.meshcat_visualizer_mutex)
         self._registered_3d_points.remove(point_path)
         self._meshcat_visualizer.delete(shape_name=point_path)
+
+    def unregister_3d_trajectory(self, trajectory_path):
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._registered_3d_trajectories.pop(trajectory_path, None)
+        self._meshcat_visualizer.delete(shape_name=trajectory_path)
 
     def load_model(self, considered_joints, model_name):
         def get_model_path_from_envs(env_list):
@@ -162,11 +172,9 @@ class MeshcatProvider(QThread):
         while True:
             start = time.time()
 
+            index = self._signal_provider.index
             if self.state == PeriodicThreadState.running and self._is_model_loaded:
-                robot_state = self._signal_provider.get_robot_state_at_index(
-                    self._signal_provider.index
-                )
-
+                robot_state = self._signal_provider.get_robot_state_at_index(index)
                 self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians
                 self._meshcat_visualizer.set_multibody_system_state(
@@ -177,13 +185,35 @@ class MeshcatProvider(QThread):
                 )
 
                 for points_path, points in self._signal_provider.get_3d_point_at_index(
-                    self._signal_provider.index
+                    index
                 ).items():
                     if points_path not in self._registered_3d_points:
                         continue
 
                     self._meshcat_visualizer.set_primitive_geometry_transform(
                         position=points, rotation=identity, shape_name=points_path
+                    )
+
+                for (
+                    trajectory_path,
+                    trajectory,
+                ) in self._signal_provider.get_3d_trajectory_at_index(index).items():
+                    if trajectory_path not in self._registered_3d_trajectories.keys():
+                        continue
+
+                    if self._registered_3d_trajectories[trajectory_path][0]:
+                        self._meshcat_visualizer.delete(shape_name=trajectory_path)
+                    else:
+                        self._registered_3d_trajectories[trajectory_path] = (
+                            True,
+                            self._registered_3d_trajectories[trajectory_path][1],
+                        )
+
+                    self._meshcat_visualizer.load_line(
+                        vertices=trajectory.T,
+                        linewidth=5.0,
+                        shape_name=trajectory_path,
+                        color=self._registered_3d_trajectories[trajectory_path][1],
                     )
 
                 self.meshcat_visualizer_mutex.unlock()

@@ -11,6 +11,8 @@ from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 import idyntree.swig as idyn
 
+import bipedal_locomotion_framework.bindings as blf
+
 # for real-time logging
 import yarp
 import json
@@ -206,21 +208,33 @@ class SignalProvider(QThread):
     def establish_connection(self):
         if not self.networkInit:
             yarp.Network.init()
-            self.loggingInput = yarp.BufferedPortBottle()
-            self.loggingInput.open("/visualizerInput:i")
-            yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
+            #self.loggingInput = yarp.BufferedPortBottle()
+            #self.loggingInput.open("/visualizerInput:i")
+            #yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
+
+            vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
+            param_handler = blf.parameters_handler.YarpParametersHandler()
+            param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
+            param_handler.set_parameter_string("local", "/visualizerInput:i") # remote must match the server
+            param_handler.set_parameter_string("carrier", "udp")
+            print("Just set the parameter string")
+            vectorCollectionsClient.initialize(param_handler)
+            print("just initialized the vectorCollectionsClient")
+
+            vectorCollectionsClient.connect()
+            print("Just tried to connect to the vector Collections Client")
+
 
             self.networkInit = True
-        success = self.loggingInput.read(shouldWait=False)
-        if not success:
+        print("About to read data from the vectors colleciton client")
+        input = vectorCollectionsClient.readData(True)
+        print("Successfully read the data: " + str(input))
+        if not input:
             print("Failed to read realtime YARP port, closing")
             return False
         else:
-            rawInput = str(success.toString())
-
             # json.loads is done twice, the 1st time is to remove escape characters
             # the 2nd time actually converts the string to the dictionary
-            input = json.loads(json.loads(rawInput))
             self.__populateRealtimeLoggerData(self.data, input)
             if self.realtimeBufferReached:
                 self.initial_time = self.timestamps[0]

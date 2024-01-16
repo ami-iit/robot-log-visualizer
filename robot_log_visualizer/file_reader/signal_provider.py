@@ -72,10 +72,12 @@ class SignalProvider(QThread):
         self._current_time = 0
 
         self.realtimeBufferReached = False
+        self.initMetadata = False
         self.realtimeFixedPlotWindow = 20
 
         # for networking with the real-time logger
-        self.networkInit = False
+        self.realtimeNetworkInit = False
+        self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -161,87 +163,80 @@ class SignalProvider(QThread):
 
         return data
 
-    def __populateRealtimeLoggerData(self, rawData, input):
-        data = {}
-        for key, value in input.items():
-            if key not in rawData.keys():
-                rawData[key] = value
-            elif key == "description_list" or key == "yarp_robot_name":
-                continue
+    def __populateRealtimeLoggerData(self, rawData, keys, value, recentTimestamp):
+        if keys[0] not in rawData:
+            rawData[keys[0]] = {}
+            
+        if len(keys) == 1:
+            if "data" not in rawData[keys[0]]:
+                rawData[keys[0]]["data"] = np.array([])
+            rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], value).reshape(-1, len(value))
+            if "timestamps" not in rawData[keys[0]]:
+                rawData[keys[0]]["timestamps"] = np.array([])
+            rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
+            
+        else:
+            self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
 
-            if value is None:
-                continue
-
-            if "data" in value.keys() and "timestamps" in value.keys():
-                data[key] = {}
-                rawData[key]["data"] = np.append(rawData[key]["data"], np.array(value["data"])).reshape(-1, len(value["data"]))
-                rawData[key]["timestamps"] = np.append(rawData[key]["timestamps"], np.array(value["timestamps"]))
-
-                if rawData[key]["timestamps"][0] < self.initial_time:
-                    self.timestamps = rawData[key]["timestamps"]
-                    self.initial_time = self.timestamps[0]
-
-                if rawData[key]["timestamps"][-1] > self.end_time:
-                    self.timestamps = rawData[key]["timestamps"]
-                    self.end_time = self.timestamps[-1]
-
-                if self.end_time - self.initial_time >= self.realtimeFixedPlotWindow:
-                    self.realtimeBufferReached = True
-                    tempInitialTime = self.initial_time
-                    tempEndTime = self.end_time
-                    while tempEndTime - tempInitialTime >= self.realtimeFixedPlotWindow:
-                        rawData[key]["data"] = np.delete(rawData[key]["data"], 0, axis=0)
-                        rawData[key]["timestamps"] = np.delete(rawData[key]["timestamps"], 0)
-                        tempInitialTime = rawData[key]["timestamps"][0]
-                        tempEndTime = rawData[key]["timestamps"][-1]
-
-                if "elements_names" in value.keys():
-                    rawData[key]["elements_names"] = value["elements_names"]
-
-
-            else:
-                data[key] = self.__populateRealtimeLoggerData(rawData=rawData[key],input=value)
-
-        return data
+    def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
+        if keys[0] not in rawData:
+            rawData[keys[0]] = {}
+            
+        if len(keys) == 1:
+            if "elements_names" not in rawData[keys[0]]:
+                rawData[keys[0]]["elements_names"] = np.array([])
+            #print(np.append(rawData[keys[0]]["elements_names"], value))
+            rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)#.reshape(-1, len(rawData[keys[0]]))
+        else:
+            self.__populateRealtimeLoggerMetadata(rawData[keys[0]], keys[1:], value)
 
 
     def establish_connection(self):
-        if not self.networkInit:
+        if not self.realtimeNetworkInit:
             yarp.Network.init()
             #self.loggingInput = yarp.BufferedPortBottle()
             #self.loggingInput.open("/visualizerInput:i")
             #yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
-
-            vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
+            
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput:i") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")
-            print("Just set the parameter string")
-            vectorCollectionsClient.initialize(param_handler)
-            print("just initialized the vectorCollectionsClient")
+            self.vectorCollectionsClient.initialize(param_handler)
 
-            vectorCollectionsClient.connect()
-            print("Just tried to connect to the vector Collections Client")
+            self.vectorCollectionsClient.connect()
+            self.realtimeNetworkInit = True
 
+        input = self.vectorCollectionsClient.readData(True)
+        metadata = self.vectorCollectionsClient.getMetadata()
 
-            self.networkInit = True
-        print("About to read data from the vectors colleciton client")
-        input = vectorCollectionsClient.readData(True)
-        print("Successfully read the data: " + str(input))
         if not input:
             print("Failed to read realtime YARP port, closing")
             return False
         else:
             # json.loads is done twice, the 1st time is to remove escape characters
             # the 2nd time actually converts the string to the dictionary
-            self.__populateRealtimeLoggerData(self.data, input)
+            if not self.initMetadata:
+                for keyString, value in metadata.items():
+                    keys = keyString.split("::")
+                    self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+                self.initMetadata = True
+
+            recentTimestamp = input["robot_realtime::timestamps"][0]
+            for keyString, value in input.items():
+                keys = keyString.split("::")
+                self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
+            self.timestamps = np.append(self.timestamps, recentTimestamp)
             if self.realtimeBufferReached:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
                 self.timestamps = np.delete(self.timestamps, 0)
                 self.realtimeBufferReached = False
+            else:
+                self.initial_time = self.timestamps[0]
+                self.end_time = self.timestamps[-1]
             self.joints_name = self.data["robot_realtime"]["description_list"]
+            #print(self.data)
             return True
 
     def open_mat_file(self, file_name: str):
@@ -346,6 +341,10 @@ class SignalProvider(QThread):
         if data is None:
             return None
         closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
+        # if the realtime network is running
+        if self.realtimeNetworkInit:
+            return data
+                
         return data[closest_index, :]
 
     def get_robot_state_at_index(self, index):

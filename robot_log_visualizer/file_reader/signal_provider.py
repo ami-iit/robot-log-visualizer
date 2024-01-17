@@ -212,13 +212,20 @@ class SignalProvider(QThread):
         else:
             # json.loads is done twice, the 1st time is to remove escape characters
             # the 2nd time actually converts the string to the dictionary
+            recentTimestamp = input["robot_realtime::timestamps"][0]
+            del metadata["robot_realtime::timestamps"]
+            del input["robot_realtime::timestamps"]
             if not self.initMetadata:
                 for keyString, value in metadata.items():
                     keys = keyString.split("::")
                     self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+                self.joints_name = self.data["robot_realtime"]["description_list"]["elements_names"].tolist()
+                self.robot_name = self.data["robot_realtime"]["yarp_robot_name"]["elements_names"][0]
+                del self.data["robot_realtime"]["description_list"]
+                del self.data["robot_realtime"]["yarp_robot_name"]
                 self.initMetadata = True
+            
 
-            recentTimestamp = input["robot_realtime::timestamps"][0]
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
@@ -231,7 +238,7 @@ class SignalProvider(QThread):
             else:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
-            self.joints_name = self.data["robot_realtime"]["description_list"]["elements_names"]
+
             return True
 
     def open_mat_file(self, file_name: str):

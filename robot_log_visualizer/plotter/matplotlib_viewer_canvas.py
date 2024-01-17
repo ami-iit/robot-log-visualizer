@@ -99,6 +99,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths.pop(path)
 
         if realtimePlot:
+            #self.axes.autoscale()
             self.axes.set_xlim(0, self.signal_provider.realtimeFixedPlotWindow)
         else:
             self.axes.set_xlim(

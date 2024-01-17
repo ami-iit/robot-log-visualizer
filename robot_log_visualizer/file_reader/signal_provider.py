@@ -174,6 +174,15 @@ class SignalProvider(QThread):
             if "timestamps" not in rawData[keys[0]]:
                 rawData[keys[0]]["timestamps"] = np.array([])
             rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
+
+            tempInitialTime = rawData[keys[0]]["timestamps"][0]
+            tempEndTime = rawData[keys[0]]["timestamps"][-1]
+            while tempEndTime - tempInitialTime > self.realtimeFixedPlotWindow:
+                rawData[keys[0]]["data"] = np.delete(rawData[keys[0]]["data"], 0, axis=0)
+                rawData[keys[0]]["timestamps"] = np.delete(rawData[keys[0]]["timestamps"], 0)
+                tempInitialTime = rawData[keys[0]]["timestamps"][0]
+                tempEndTime = rawData[keys[0]]["timestamps"][-1]
+
             
         else:
             self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
@@ -213,6 +222,7 @@ class SignalProvider(QThread):
             # json.loads is done twice, the 1st time is to remove escape characters
             # the 2nd time actually converts the string to the dictionary
             recentTimestamp = input["robot_realtime::timestamps"][0]
+            self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del metadata["robot_realtime::timestamps"]
             del input["robot_realtime::timestamps"]
             if not self.initMetadata:
@@ -229,15 +239,13 @@ class SignalProvider(QThread):
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
-            self.timestamps = np.append(self.timestamps, recentTimestamp)
-            if self.realtimeBufferReached:
+
+            while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
-                self.timestamps = np.delete(self.timestamps, 0)
-                self.realtimeBufferReached = False
-            else:
-                self.initial_time = self.timestamps[0]
-                self.end_time = self.timestamps[-1]
+                self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
+            self.initial_time = self.timestamps[0]
+            self.end_time = self.timestamps[-1]
 
             return True
 

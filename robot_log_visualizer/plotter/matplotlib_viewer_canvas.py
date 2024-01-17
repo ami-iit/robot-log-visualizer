@@ -81,13 +81,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 # This happens in the case the variable is a scalar.
                 datapoints = data["data"][:]
 
-            print(data["timestamps"])
             timestamps = data["timestamps"] - self.signal_provider.initial_time
-
-            print("Timestamps:")
-            print(timestamps)
-            print("Datapoints:")
-            print(datapoints)
 
             (self.active_paths[path_string],) = self.axes.plot(
                 timestamps, datapoints, label=legend_string

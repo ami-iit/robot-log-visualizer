@@ -185,8 +185,7 @@ class SignalProvider(QThread):
         if len(keys) == 1:
             if "elements_names" not in rawData[keys[0]]:
                 rawData[keys[0]]["elements_names"] = np.array([])
-            #print(np.append(rawData[keys[0]]["elements_names"], value))
-            rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)#.reshape(-1, len(rawData[keys[0]]))
+            rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
         else:
             self.__populateRealtimeLoggerMetadata(rawData[keys[0]], keys[1:], value)
 
@@ -194,9 +193,6 @@ class SignalProvider(QThread):
     def establish_connection(self):
         if not self.realtimeNetworkInit:
             yarp.Network.init()
-            #self.loggingInput = yarp.BufferedPortBottle()
-            #self.loggingInput.open("/visualizerInput:i")
-            #yarp.Network.connect("/YARPRobotLoggerRT:o", "/visualizerInput:i")
             
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
@@ -235,8 +231,7 @@ class SignalProvider(QThread):
             else:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
-            self.joints_name = self.data["robot_realtime"]["description_list"]
-            #print(self.data)
+            self.joints_name = self.data["robot_realtime"]["description_list"]["elements_names"]
             return True
 
     def open_mat_file(self, file_name: str):
@@ -341,9 +336,6 @@ class SignalProvider(QThread):
         if data is None:
             return None
         closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
-        # if the realtime network is running
-        if self.realtimeNetworkInit:
-            return data
                 
         return data[closest_index, :]
 

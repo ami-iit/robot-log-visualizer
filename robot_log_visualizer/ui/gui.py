@@ -744,9 +744,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
 
         # load the model
-        self.signal_provider.joints_name = self.signal_provider.data["robot_realtime"]["description_list"]
-        print("Now printing the robot names")
-        print(self.signal_provider.data["robot_realtime"]["yarp_robot_name"]["elements_names"][0])
+        self.signal_provider.joints_name = self.signal_provider.data["robot_realtime"]["description_list"]["elements_names"].tolist()
         self.signal_provider.robot_name = self.signal_provider.data["robot_realtime"]["yarp_robot_name"]["elements_names"][0]
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name

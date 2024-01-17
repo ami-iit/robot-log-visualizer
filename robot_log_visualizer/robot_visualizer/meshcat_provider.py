@@ -201,12 +201,9 @@ class MeshcatProvider(QThread):
 
     # For the real-time logger
     def updateMeshRealtime(self):
-        base_rotation = np.eye(3)
-        base_position = np.array([0.0, 0.0, 0.0])
-
         self._signal_provider.index = len(self._signal_provider.timestamps) - 1
         robot_state = self._signal_provider.get_robot_state_at_index(self._signal_provider.index)
-        # These are the robot measured joint positions in radians
+
         self._meshcat_visualizer.set_multibody_system_state(
             base_position=robot_state["base_position"],
             base_rotation=robot_state["base_orientation"],

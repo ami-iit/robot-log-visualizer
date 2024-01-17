@@ -192,7 +192,9 @@ class SignalProvider(QThread):
             rawData[keys[0]] = {}
             
         if len(keys) == 1:
-            if "elements_names" not in rawData[keys[0]]:
+            if len(rawData[keys[0]]) == 0:
+                return
+            elif "elements_names" not in rawData[keys[0]]:
                 rawData[keys[0]]["elements_names"] = np.array([])
             rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
         else:
@@ -214,6 +216,7 @@ class SignalProvider(QThread):
 
         input = self.vectorCollectionsClient.readData(True)
         metadata = self.vectorCollectionsClient.getMetadata()
+        print(metadata)
 
         if not input:
             print("Failed to read realtime YARP port, closing")
@@ -226,11 +229,15 @@ class SignalProvider(QThread):
             del metadata["robot_realtime::timestamps"]
             del input["robot_realtime::timestamps"]
             if not self.initMetadata:
+                self.joints_name = metadata["robot_realtime::description_list"]
+                self.robot_name = metadata["robot_realtime::yarp_robot_name"][0]
                 for keyString, value in metadata.items():
                     keys = keyString.split("::")
                     self.__populateRealtimeLoggerMetadata(self.data, keys, value)
-                self.joints_name = self.data["robot_realtime"]["description_list"]["elements_names"].tolist()
-                self.robot_name = self.data["robot_realtime"]["yarp_robot_name"]["elements_names"][0]
+                print("Joints name:")
+                print(self.joints_name)
+                print("robot name:")
+                print(self.robot_name)
                 del self.data["robot_realtime"]["description_list"]
                 del self.data["robot_realtime"]["yarp_robot_name"]
                 self.initMetadata = True

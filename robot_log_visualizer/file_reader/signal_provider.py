@@ -170,7 +170,7 @@ class SignalProvider(QThread):
     def __populateRealtimeLoggerData(self, rawData, keys, value, recentTimestamp):
         if keys[0] not in rawData:
             rawData[keys[0]] = {}
-            
+
         if len(keys) == 1:
             if "data" not in rawData[keys[0]]:
                 rawData[keys[0]]["data"] = np.array([])
@@ -187,14 +187,13 @@ class SignalProvider(QThread):
                 tempInitialTime = rawData[keys[0]]["timestamps"][0]
                 tempEndTime = rawData[keys[0]]["timestamps"][-1]
 
-            
         else:
             self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
 
     def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
         if keys[0] not in rawData:
             rawData[keys[0]] = {}
-            
+
         if len(keys) == 1:
             if len(value) == 0:
                 del rawData[keys[0]]
@@ -209,7 +208,7 @@ class SignalProvider(QThread):
     def establish_connection(self):
         if not self.realtimeNetworkInit:
             yarp.Network.init()
-            
+
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
@@ -222,7 +221,7 @@ class SignalProvider(QThread):
             if not metadata:
                 print("Failed to read realtime YARP port, closing")
                 return False
-            
+
             self.joints_name = metadata["robot_realtime::description_list"]
             self.robot_name = metadata["robot_realtime::yarp_robot_name"][0]
             for keyString, value in metadata.items():
@@ -230,7 +229,7 @@ class SignalProvider(QThread):
                 self.__populateRealtimeLoggerMetadata(self.data, keys, value)
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
-            
+
 
         input = self.vectorCollectionsClient.readData(True)
 
@@ -243,7 +242,7 @@ class SignalProvider(QThread):
             recentTimestamp = input["robot_realtime::timestamps"][0]
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
-            
+
 
             for keyString, value in input.items():
                 keys = keyString.split("::")

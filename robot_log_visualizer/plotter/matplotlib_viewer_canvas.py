@@ -86,7 +86,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             (self.active_paths[path_string],) = self.axes.plot(
                 timestamps, datapoints, label=legend_string
             )
-
+        self.axes.grid()
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():
             path = active_path.split("/")

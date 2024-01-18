@@ -126,7 +126,6 @@ class SignalProvider(QThread):
         return data
 
     def __populate_numerical_data(self, file_object):
-        print("Populating data!!!")
         data = {}
         for key, value in file_object.items():
             if not isinstance(value, h5py._hl.group.Group):
@@ -207,17 +206,13 @@ class SignalProvider(QThread):
         if not self.realtimeNetworkInit:
             yarp.Network.init()
             
-            print("Initializing the yarp network")
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")
-            print("About to initialize the client")
             self.vectorCollectionsClient.initialize(param_handler)
-            print("client initialized")
 
             self.vectorCollectionsClient.connect()
-            print("client connected")
             self.realtimeNetworkInit = True
             metadata = self.vectorCollectionsClient.getMetadata()
             if not metadata:
@@ -233,9 +228,7 @@ class SignalProvider(QThread):
             del self.data["robot_realtime"]["yarp_robot_name"]
             
 
-        print("About to read input data")
         input = self.vectorCollectionsClient.readData(True)
-        print("input data was read")
 
         if not input:
             print("Failed to read realtime YARP port, closing")

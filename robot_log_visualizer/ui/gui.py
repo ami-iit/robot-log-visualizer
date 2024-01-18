@@ -691,10 +691,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print("Start are maintain connection")
         while self.realtimeConnectionEnabled and yarp.Network.exists("/YARPRobotLoggerRT:o"):
             if not self.signal_provider.establish_connection():
-                print("counter increasing")
-                time.sleep(0.1)
-                timeoutCounter = timeoutCounter + 1
-                continue
+                break
 
             # populate text logging tree
             self.plottingLock.acquire()
@@ -731,12 +728,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data
-        connectionCounter = 0
-        while not self.signal_provider.establish_connection() and connectionCounter < self.timeoutAttempts:
-            time.sleep(0.1)
-            connectionCounter = connectionCounter + 1
-        if connectionCounter == self.timeoutAttempts:
-            print("Failed to connect, connection timeout")
+        if not self.signal_provider.establish_connection():
+            print("Could not connect to YARP server, closing")
             return
         self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui

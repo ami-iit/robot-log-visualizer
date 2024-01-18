@@ -55,6 +55,9 @@ class SignalProvider(QThread):
         self._3d_points_path = {}
         self._3d_points_path_lock = QMutex()
 
+        self._3d_trajectories_path = {}
+        self._3d_trajectories_path_lock = QMutex()
+
         self.period = period
 
         self.data = {}
@@ -78,6 +81,7 @@ class SignalProvider(QThread):
         # for networking with the real-time logger
         self.realtimeNetworkInit = False
         self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
+        self.trajectory_span = 200
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -351,13 +355,18 @@ class SignalProvider(QThread):
 
         return data["data"], data["timestamps"]
 
-    def get_item_from_path_at_index(self, path, index, default_path=None):
+    def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
         data, timestamps = self.get_item_from_path(path, default_path)
         if data is None:
             return None
         closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
-                
-        return data[closest_index, :]
+
+        if neighbor == 0:
+            return data[closest_index, :]
+
+        initial_index = max(0, closest_index - neighbor)
+        end_index = min(len(timestamps), closest_index + neighbor + 1)
+        return data[initial_index:end_index, :]
 
     def get_robot_state_at_index(self, index):
         robot_state = {}
@@ -419,6 +428,31 @@ class SignalProvider(QThread):
 
         return points
 
+    def get_3d_trajectory_at_index(self, index):
+        trajectories = {}
+
+        self._3d_trajectories_path_lock.lock()
+
+        for key, value in self._3d_trajectories_path.items():
+            trajectories[key] = self.get_item_from_path_at_index(
+                value, index, neighbor=self.trajectory_span
+            )
+            # force the size of the points to be 3 if less than 3 we assume that the point is a 2d point and we add a 0 as z coordinate
+            if trajectories[key].shape[1] < 3:
+                trajectories[key] = np.concatenate(
+                    (
+                        trajectories[key],
+                        np.zeros(
+                            (trajectories[key].shape[0], 3 - trajectories[key].shape[1])
+                        ),
+                    ),
+                    axis=1,
+                )
+
+        self._3d_trajectories_path_lock.unlock()
+
+        return trajectories
+
     def register_3d_point(self, key, points_path):
         self._3d_points_path_lock.lock()
         self._3d_points_path[key] = points_path
@@ -428,6 +462,16 @@ class SignalProvider(QThread):
         self._3d_points_path_lock.lock()
         del self._3d_points_path[key]
         self._3d_points_path_lock.unlock()
+
+    def register_3d_trajectory(self, key, trajectory_path):
+        self._3d_trajectories_path_lock.lock()
+        self._3d_trajectories_path[key] = trajectory_path
+        self._3d_trajectories_path_lock.unlock()
+
+    def unregister_3d_trajectory(self, key):
+        self._3d_trajectories_path_lock.lock()
+        del self._3d_trajectories_path[key]
+        self._3d_trajectories_path_lock.unlock()
 
     def run(self):
         while True:

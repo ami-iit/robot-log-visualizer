@@ -126,6 +126,7 @@ class SignalProvider(QThread):
         return data
 
     def __populate_numerical_data(self, file_object):
+        print("Populating data!!!")
         data = {}
         for key, value in file_object.items():
             if not isinstance(value, h5py._hl.group.Group):
@@ -192,9 +193,10 @@ class SignalProvider(QThread):
             rawData[keys[0]] = {}
             
         if len(keys) == 1:
-            if len(rawData[keys[0]]) == 0:
+            if len(value) == 0:
+                del rawData[keys[0]]
                 return
-            elif "elements_names" not in rawData[keys[0]]:
+            if "elements_names" not in rawData[keys[0]]:
                 rawData[keys[0]]["elements_names"] = np.array([])
             rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
         else:
@@ -205,18 +207,35 @@ class SignalProvider(QThread):
         if not self.realtimeNetworkInit:
             yarp.Network.init()
             
+            print("Initializing the yarp network")
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
-            param_handler.set_parameter_string("local", "/visualizerInput:i") # remote must match the server
+            param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")
+            print("About to initialize the client")
             self.vectorCollectionsClient.initialize(param_handler)
+            print("client initialized")
 
             self.vectorCollectionsClient.connect()
+            print("client connected")
             self.realtimeNetworkInit = True
+            metadata = self.vectorCollectionsClient.getMetadata()
+            if not metadata:
+                print("Failed to read realtime YARP port, closing")
+                return False
+            
+            self.joints_name = metadata["robot_realtime::description_list"]
+            self.robot_name = metadata["robot_realtime::yarp_robot_name"][0]
+            for keyString, value in metadata.items():
+                keys = keyString.split("::")
+                self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+            del self.data["robot_realtime"]["description_list"]
+            del self.data["robot_realtime"]["yarp_robot_name"]
+            
 
+        print("About to read input data")
         input = self.vectorCollectionsClient.readData(True)
-        metadata = self.vectorCollectionsClient.getMetadata()
-        print(metadata)
+        print("input data was read")
 
         if not input:
             print("Failed to read realtime YARP port, closing")
@@ -226,21 +245,7 @@ class SignalProvider(QThread):
             # the 2nd time actually converts the string to the dictionary
             recentTimestamp = input["robot_realtime::timestamps"][0]
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
-            del metadata["robot_realtime::timestamps"]
             del input["robot_realtime::timestamps"]
-            if not self.initMetadata:
-                self.joints_name = metadata["robot_realtime::description_list"]
-                self.robot_name = metadata["robot_realtime::yarp_robot_name"][0]
-                for keyString, value in metadata.items():
-                    keys = keyString.split("::")
-                    self.__populateRealtimeLoggerMetadata(self.data, keys, value)
-                print("Joints name:")
-                print(self.joints_name)
-                print("robot name:")
-                print(self.robot_name)
-                del self.data["robot_realtime"]["description_list"]
-                del self.data["robot_realtime"]["yarp_robot_name"]
-                self.initMetadata = True
             
 
             for keyString, value in input.items():

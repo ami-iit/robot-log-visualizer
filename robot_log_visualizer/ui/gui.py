@@ -687,8 +687,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.__load_mat_file(file_name)
 
     def maintain_connection(self, root):
+        timeoutCounter = 0
+        print("Start are maintain connection")
         while self.realtimeConnectionEnabled and yarp.Network.exists("/YARPRobotLoggerRT:o"):
             if not self.signal_provider.establish_connection():
+                print("counter increasing")
+                time.sleep(0.1)
+                timeoutCounter = timeoutCounter + 1
                 continue
 
             # populate text logging tree
@@ -718,6 +723,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             time.sleep(self.animation_period + self.sleepPeriodBuffer)
             self.meshcat_provider.updateMeshRealtime()
+        print("Outside of while loop")
 
     def connect_realtime_logger(self):
         self.realtimeConnectionEnabled = True

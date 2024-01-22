@@ -207,7 +207,7 @@ class SignalProvider(QThread):
             yarp.Network.init()
             
             param_handler = blf.parameters_handler.YarpParametersHandler()
-            param_handler.set_parameter_string("remote", "/testVectorCollections") # you must have some local port as well
+            param_handler.set_parameter_string("remote", "/rtLoggingVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")
             self.vectorCollectionsClient.initialize(param_handler)

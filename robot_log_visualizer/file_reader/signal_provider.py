@@ -191,6 +191,8 @@ class SignalProvider(QThread):
             self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
 
     def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
+        if keys[0] == "timestamps":
+            return
         if keys[0] not in rawData:
             rawData[keys[0]] = {}
 

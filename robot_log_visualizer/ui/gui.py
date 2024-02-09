@@ -708,8 +708,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.pyconsole.push_local_ns("data", self.signal_provider.data)
 
             self.ui.timeSlider.setMaximum(self.signal_size)
-            self.ui.startButton.setEnabled(True)
-            self.ui.timeSlider.setEnabled(True)
 
             if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
                 self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
@@ -757,6 +755,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             self.logger.write_to_log(msg)
 
+        # Disable these buttons for RT communication 
+        self.ui.startButton.setEnabled(False)
+        self.ui.timeSlider.setEnabled(False)
         self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))
         self.networkThread.start()
 

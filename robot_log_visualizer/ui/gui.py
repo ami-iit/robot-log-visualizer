@@ -755,7 +755,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             self.logger.write_to_log(msg)
 
-        # Disable these buttons for RT communication 
+        # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
         self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))

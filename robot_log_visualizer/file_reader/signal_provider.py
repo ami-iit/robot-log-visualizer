@@ -258,9 +258,8 @@ class SignalProvider(QThread):
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
-            if self.updateMetadata: #int(self.data["robot_realtime"]["newMetadata"]["data"][-1]) != self.updateMetadataVal:
+            if self.updateMetadata:
                 self.updateMetadataVal = newMetadataInputVal
-                # self.updateMetadata = True
                 metadata = self.vectorCollectionsClient.get_metadata().getVectors()
                 difference = { k : metadata[k] for k in set(metadata) - set(self.rtMetadataDict) }
                 self.rtMetadataDict = metadata

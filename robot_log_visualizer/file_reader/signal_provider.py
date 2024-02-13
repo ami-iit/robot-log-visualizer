@@ -253,7 +253,6 @@ class SignalProvider(QThread):
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
-            
             if int(self.data["robot_realtime"]["newMetadata"]["data"][-1]) != self.updateMetadataVal:
                 self.updateMetadataVal = int(self.data["robot_realtime"]["newMetadata"]["data"][-1])
                 self.updateMetadata = True

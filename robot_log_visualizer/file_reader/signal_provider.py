@@ -197,7 +197,7 @@ class SignalProvider(QThread):
             self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
 
     def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
-        if keys[0] == "timestamps":
+        if keys[0] == "timestamps" or keys[0] == "newMetadata":
             return
         if keys[0] not in rawData:
             rawData[keys[0]] = {}
@@ -258,6 +258,7 @@ class SignalProvider(QThread):
                 self.updateMetadata = True
                 metadata = self.vectorCollectionsClient.get_metadata().getVectors()
                 difference = { k : metadata[k] for k in set(metadata) - set(self.rtMetadataDict) }
+                self.rtMetadataDict = metadata
                 for keyString, value in difference.items():
                     keys = keyString.split("::")
                     self.__populateRealtimeLoggerMetadata(self.data, keys, value)

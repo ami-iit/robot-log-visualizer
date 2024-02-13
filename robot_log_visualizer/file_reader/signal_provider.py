@@ -82,6 +82,9 @@ class SignalProvider(QThread):
         self.realtimeNetworkInit = False
         self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
         self.trajectory_span = 200
+        self.rtMetadataDict = {}
+        self.updateMetadataVal = 0
+        self.updateMetadata = False
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -174,9 +177,12 @@ class SignalProvider(QThread):
         if len(keys) == 1:
             if "data" not in rawData[keys[0]]:
                 rawData[keys[0]]["data"] = np.array([])
+                starterValue = [0.0] * len(value)
+                rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], starterValue).reshape(-1, len(value))
             rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], value).reshape(-1, len(value))
             if "timestamps" not in rawData[keys[0]]:
                 rawData[keys[0]]["timestamps"] = np.array([])
+                rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
             rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
 
             tempInitialTime = rawData[keys[0]]["timestamps"][0]
@@ -219,19 +225,18 @@ class SignalProvider(QThread):
 
             self.vectorCollectionsClient.connect()
             self.realtimeNetworkInit = True
-            metadata = self.vectorCollectionsClient.get_metadata().getVectors()
-            if not metadata:
+            self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().getVectors()
+            if not self.rtMetadataDict:
                 print("Failed to read realtime YARP port, closing")
                 return False
 
-            self.joints_name = metadata["robot_realtime::description_list"]
-            self.robot_name = metadata["robot_realtime::yarp_robot_name"][0]
-            for keyString, value in metadata.items():
+            self.joints_name = self.rtMetadataDict["robot_realtime::description_list"]
+            self.robot_name = self.rtMetadataDict["robot_realtime::yarp_robot_name"][0]
+            for keyString, value in self.rtMetadataDict.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerMetadata(self.data, keys, value)
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
-
 
         input = self.vectorCollectionsClient.read_data(True)
 
@@ -245,10 +250,21 @@ class SignalProvider(QThread):
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
 
+            print(input["robot_realtime::newMetadata"])
 
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
+            
+            if int(self.data["robot_realtime"]["newMetadata"]["data"][-1]) != self.updateMetadataVal:
+                self.updateMetadataVal = int(self.data["robot_realtime"]["newMetadata"]["data"][-1])
+                self.updateMetadata = True
+                metadata = self.vectorCollectionsClient.get_metadata().getVectors()
+                difference = { k : metadata[k] for k in set(metadata) - set(self.rtMetadataDict) }
+                for keyString, value in difference.items():
+                    keys = keyString.split("::")
+                    self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+
 
             while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
                 self.initial_time = self.timestamps[0]

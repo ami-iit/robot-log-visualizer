@@ -250,8 +250,6 @@ class SignalProvider(QThread):
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
 
-            print(input["robot_realtime::newMetadata"])
-
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)

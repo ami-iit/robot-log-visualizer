@@ -197,7 +197,7 @@ class SignalProvider(QThread):
             self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
 
     def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
-        if keys[0] == "timestamps" or keys[0] == "newMetadata":
+        if keys[0] == "timestamps":
             return
         if keys[0] not in rawData:
             rawData[keys[0]] = {}
@@ -237,6 +237,7 @@ class SignalProvider(QThread):
                 self.__populateRealtimeLoggerMetadata(self.data, keys, value)
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
+            del self.data["robot_realtime"]["newMetadata"]
 
         input = self.vectorCollectionsClient.read_data(True)
 
@@ -250,12 +251,16 @@ class SignalProvider(QThread):
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
 
+            newMetadataInputVal = input["robot_realtime::newMetadata"][0]
+            self.updateMetadata = newMetadataInputVal != self.updateMetadataVal
+            del input["robot_realtime::newMetadata"]
+
             for keyString, value in input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
-            if int(self.data["robot_realtime"]["newMetadata"]["data"][-1]) != self.updateMetadataVal:
-                self.updateMetadataVal = int(self.data["robot_realtime"]["newMetadata"]["data"][-1])
-                self.updateMetadata = True
+            if self.updateMetadata: #int(self.data["robot_realtime"]["newMetadata"]["data"][-1]) != self.updateMetadataVal:
+                self.updateMetadataVal = newMetadataInputVal
+                # self.updateMetadata = True
                 metadata = self.vectorCollectionsClient.get_metadata().getVectors()
                 difference = { k : metadata[k] for k in set(metadata) - set(self.rtMetadataDict) }
                 self.rtMetadataDict = metadata

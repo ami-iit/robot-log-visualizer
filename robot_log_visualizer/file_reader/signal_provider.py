@@ -251,6 +251,13 @@ class SignalProvider(QThread):
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
 
+            while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
+                self.initial_time = self.timestamps[0]
+                self.end_time = self.timestamps[-1]
+                self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
+            self.initial_time = self.timestamps[0]
+            self.end_time = self.timestamps[-1]
+
             newMetadataInputVal = input["robot_realtime::newMetadata"][0]
             self.updateMetadata = newMetadataInputVal != self.updateMetadataVal
             del input["robot_realtime::newMetadata"]
@@ -268,12 +275,6 @@ class SignalProvider(QThread):
                     self.__populateRealtimeLoggerMetadata(self.data, keys, value)
 
 
-            while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
-                self.initial_time = self.timestamps[0]
-                self.end_time = self.timestamps[-1]
-                self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
-            self.initial_time = self.timestamps[0]
-            self.end_time = self.timestamps[-1]
 
             return True
 

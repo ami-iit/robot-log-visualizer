@@ -175,14 +175,7 @@ class SignalProvider(QThread):
             rawData[keys[0]] = {}
 
         if len(keys) == 1:
-            if "data" not in rawData[keys[0]]:
-                rawData[keys[0]]["data"] = np.array([])
-                starterValue = [0.0] * len(value)
-                rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], starterValue).reshape(-1, len(value))
             rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], value).reshape(-1, len(value))
-            if "timestamps" not in rawData[keys[0]]:
-                rawData[keys[0]]["timestamps"] = np.array([])
-                rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
             rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
 
             tempInitialTime = rawData[keys[0]]["timestamps"][0]
@@ -208,6 +201,13 @@ class SignalProvider(QThread):
                 return
             if "elements_names" not in rawData[keys[0]]:
                 rawData[keys[0]]["elements_names"] = np.array([])
+
+                rawData[keys[0]]["data"] = np.array([])
+                # starterValue = [0.0] * len(value)
+                # rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], starterValue).reshape(-1, len(value))
+                rawData[keys[0]]["timestamps"] = np.array([])
+                # rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
+
             rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
         else:
             self.__populateRealtimeLoggerMetadata(rawData[keys[0]], keys[1:], value)
@@ -245,12 +245,12 @@ class SignalProvider(QThread):
             print("Failed to read realtime YARP port, closing")
             return False
         else:
-            # json.loads is done twice, the 1st time is to remove escape characters
-            # the 2nd time actually converts the string to the dictionary
+            # Update the timestamps
             recentTimestamp = input["robot_realtime::timestamps"][0]
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
             del input["robot_realtime::timestamps"]
 
+            # Keep the data within the fixed time interval
             while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
@@ -258,13 +258,12 @@ class SignalProvider(QThread):
             self.initial_time = self.timestamps[0]
             self.end_time = self.timestamps[-1]
 
+            # Check if new metadata arrived for a new signal
             newMetadataInputVal = input["robot_realtime::newMetadata"][0]
             self.updateMetadata = newMetadataInputVal != self.updateMetadataVal
             del input["robot_realtime::newMetadata"]
 
-            for keyString, value in input.items():
-                keys = keyString.split("::")
-                self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
+            # If there is new metadata, populate it
             if self.updateMetadata:
                 self.updateMetadataVal = newMetadataInputVal
                 metadata = self.vectorCollectionsClient.get_metadata().getVectors()
@@ -274,7 +273,10 @@ class SignalProvider(QThread):
                     keys = keyString.split("::")
                     self.__populateRealtimeLoggerMetadata(self.data, keys, value)
 
-
+            # Store the new data that comes in
+            for keyString, value in input.items():
+                keys = keyString.split("::")
+                self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
 
             return True
 

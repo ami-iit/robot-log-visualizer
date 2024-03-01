@@ -476,6 +476,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.text_logger.highlight_cell(self.find_text_log_index(path))
 
     def plotTabBar_currentChanged(self, index):
+        # pause all the animations except the one that is selected, this is done to avoid the overhead of the animations
+        for i in range(len(self.plot_items)):
+            if i != index:
+                self.plot_items[i].canvas.pause_animation()
+            else:
+                self.plot_items[i].canvas.resume_animation()
+
         # clear the selection to prepare a new one
         self.ui.variableTreeWidget.clearSelection()
         for active_path_str in self.plot_items[index].canvas.active_paths.keys():

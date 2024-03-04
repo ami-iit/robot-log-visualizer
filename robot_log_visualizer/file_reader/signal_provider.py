@@ -83,8 +83,6 @@ class SignalProvider(QThread):
         self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
         self.trajectory_span = 200
         self.rtMetadataDict = {}
-        self.updateMetadataVal = 0
-        self.updateMetadata = False
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -233,7 +231,6 @@ class SignalProvider(QThread):
                 self.__populateRealtimeLoggerMetadata(self.data, keys, value)
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
-            del self.data["robot_realtime"]["newMetadata"]
 
         input = self.vectorCollectionsClient.read_data(True)
 
@@ -253,21 +250,6 @@ class SignalProvider(QThread):
                 self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
             self.initial_time = self.timestamps[0]
             self.end_time = self.timestamps[-1]
-
-            # Check if new metadata arrived for a new signal
-            newMetadataInputVal = input["robot_realtime::newMetadata"][0]
-            self.updateMetadata = newMetadataInputVal != self.updateMetadataVal
-            del input["robot_realtime::newMetadata"]
-
-            # If there is new metadata, populate it
-            if self.updateMetadata:
-                self.updateMetadataVal = newMetadataInputVal
-                metadata = self.vectorCollectionsClient.get_metadata().getVectors()
-                difference = { k : metadata[k] for k in set(metadata) - set(self.rtMetadataDict) }
-                self.rtMetadataDict = metadata
-                for keyString, value in difference.items():
-                    keys = keyString.split("::")
-                    self.__populateRealtimeLoggerMetadata(self.data, keys, value)
 
             # Store the new data that comes in
             for keyString, value in input.items():

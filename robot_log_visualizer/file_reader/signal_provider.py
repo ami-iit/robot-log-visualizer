@@ -201,12 +201,8 @@ class SignalProvider(QThread):
                 return
             if "elements_names" not in rawData[keys[0]]:
                 rawData[keys[0]]["elements_names"] = np.array([])
-
                 rawData[keys[0]]["data"] = np.array([])
-                # starterValue = [0.0] * len(value)
-                # rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], starterValue).reshape(-1, len(value))
                 rawData[keys[0]]["timestamps"] = np.array([])
-                # rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
 
             rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
         else:

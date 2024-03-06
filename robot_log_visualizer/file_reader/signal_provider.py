@@ -219,7 +219,7 @@ class SignalProvider(QThread):
 
             self.vectorCollectionsClient.connect()
             self.realtimeNetworkInit = True
-            self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().getVectors()
+            self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().vectors
             if not self.rtMetadataDict:
                 print("Failed to read realtime YARP port, closing")
                 return False

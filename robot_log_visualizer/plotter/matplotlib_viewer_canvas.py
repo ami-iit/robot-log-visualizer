@@ -40,7 +40,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # start the vertical line animation
         (self.vertical_line,) = self.axes.plot([], [], "-", lw=1, c="k")
 
-        self.periond_in_ms = int(period * 1000)
+        self.period_in_ms = int(period * 1000)
 
         # active paths
         self.active_paths = {}
@@ -49,7 +49,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.fig,
             self.update_vertical_line,
             init_func=self.init_vertical_line,
-            interval=self.periond_in_ms,
+            interval=self.period_in_ms,
             blit=True,
         )
 
@@ -65,7 +65,13 @@ class MatplotlibViewerCanvas(FigureCanvas):
         if self.vertical_line_anim:
             self.vertical_line_anim._stop()
 
-    def update_plots(self, paths, legends, realtimePlot=False):
+    def pause_animation(self):
+        self.vertical_line_anim.pause()
+
+    def resume_animation(self):
+        self.vertical_line_anim.resume()
+
+    def update_plots(self, paths, legends, realtimePlot):
         self.axes.cla()
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
@@ -114,7 +120,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.fig,
             self.update_vertical_line,
             init_func=self.init_vertical_line,
-            interval=self.periond_in_ms,
+            interval=self.period_in_ms,
             blit=True,
         )
 

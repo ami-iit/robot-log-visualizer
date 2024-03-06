@@ -232,16 +232,16 @@ class SignalProvider(QThread):
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
 
-        input = self.vectorCollectionsClient.read_data(True)
+        vc_input = self.vectorCollectionsClient.read_data(True)
 
-        if not input:
+        if not vc_input:
             print("Failed to read realtime YARP port, closing")
             return False
         else:
             # Update the timestamps
-            recentTimestamp = input["robot_realtime::timestamps"][0]
+            recentTimestamp = vc_input["robot_realtime::timestamps"][0]
             self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
-            del input["robot_realtime::timestamps"]
+            del vc_input["robot_realtime::timestamps"]
 
             # Keep the data within the fixed time interval
             while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
@@ -252,7 +252,7 @@ class SignalProvider(QThread):
             self.end_time = self.timestamps[-1]
 
             # Store the new data that comes in
-            for keyString, value in input.items():
+            for keyString, value in vc_input.items():
                 keys = keyString.split("::")
                 self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
 

@@ -694,9 +694,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if file_name:
             self.__load_mat_file(file_name)
 
-    def maintain_connection(self, root):
+    def establish_connection(self, root):
         while self.realtimeConnectionEnabled:
-            if not self.signal_provider.establish_connection():
+            if not self.signal_provider.maintain_connection():
                 self.realtimeConnectionEnabled = False
                 break
 
@@ -731,7 +731,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         print("Now connecting for real-time logging")
 
         # Do initial connection to populate the necessary data
-        if not self.signal_provider.establish_connection():
+        if not self.signal_provider.maintain_connection():
             print("Could not connect to YARP server, closing")
             self.realtimeConnectionEnabled = False
             return
@@ -764,7 +764,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
-        self.networkThread = threading.Thread(target=self.maintain_connection, args=(root,))
+        self.networkThread = threading.Thread(target=self.establish_connection, args=(root,))
         self.networkThread.start()
 
 

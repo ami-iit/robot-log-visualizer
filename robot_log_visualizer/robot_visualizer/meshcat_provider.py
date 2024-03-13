@@ -37,6 +37,8 @@ class MeshcatProvider(QThread):
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
 
+        self._realtimeMeshUpdate = False
+
     @property
     def state(self):
         locker = QMutexLocker(self.state_lock)
@@ -175,6 +177,7 @@ class MeshcatProvider(QThread):
             index = self._signal_provider.index
             if self.state == PeriodicThreadState.running and self._is_model_loaded:
                 robot_state = self._signal_provider.get_robot_state_at_index(index)
+
                 self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians
                 self._meshcat_visualizer.set_multibody_system_state(
@@ -224,3 +227,15 @@ class MeshcatProvider(QThread):
 
             if self.state == PeriodicThreadState.closed:
                 return
+
+    # For the real-time logger
+    def updateMeshRealtime(self):
+        self._signal_provider.index = len(self._signal_provider.timestamps) - 1
+        robot_state = self._signal_provider.get_robot_state_at_index(self._signal_provider.index)
+
+        self._meshcat_visualizer.set_multibody_system_state(
+            base_position=robot_state["base_position"],
+            base_rotation=robot_state["base_orientation"],
+            joint_value=robot_state["joints_position"][self.model_joints_index],
+            model_name="robot",
+        )

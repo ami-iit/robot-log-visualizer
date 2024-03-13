@@ -239,15 +239,24 @@ class Ui_MainWindow(object):
         icon = QtGui.QIcon.fromTheme("exit")
         self.actionQuit.setIcon(icon)
         self.actionQuit.setObjectName("actionQuit")
+
+        # Add the GUI components for the open action
         self.actionOpen = QtWidgets.QAction(MainWindow)
         icon = QtGui.QIcon.fromTheme("document-open")
         self.actionOpen.setIcon(icon)
         self.actionOpen.setObjectName("actionOpen")
+
+        # Add a GUI action for connecting to the YARP port
+        # for real-time logging
+        self.actionConnect = QtWidgets.QAction(MainWindow)
+        self.actionConnect.setObjectName("actionConnect")
+
         self.actionAbout = QtWidgets.QAction(MainWindow)
         self.actionAbout.setObjectName("actionAbout")
         self.actionSet_Robot_Model = QtWidgets.QAction(MainWindow)
         self.actionSet_Robot_Model.setObjectName("actionSet_Robot_Model")
         self.menuFile.addAction(self.actionOpen)
+        self.menuFile.addAction(self.actionConnect)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionQuit)
         self.menuHelp.addAction(self.actionAbout)
@@ -275,6 +284,7 @@ class Ui_MainWindow(object):
         self.actionQuit.setText(_translate("MainWindow", "&Quit"))
         self.actionQuit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.actionOpen.setText(_translate("MainWindow", "&Open"))
+        self.actionConnect.setText(_translate("MainWindow", "Realtime Connect"))
         self.actionOpen.setShortcut(_translate("MainWindow", "Ctrl+O"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionSet_Robot_Model.setText(_translate("MainWindow", "Set Robot Model"))

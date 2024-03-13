@@ -2,6 +2,7 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
+import sys
 import time
 import math
 import h5py
@@ -9,6 +10,12 @@ import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 import idyntree.swig as idyn
+
+import bipedal_locomotion_framework.bindings as blf
+
+# for real-time logging
+import yarp
+import json
 
 
 class TextLoggingMsg:
@@ -67,7 +74,15 @@ class SignalProvider(QThread):
 
         self._current_time = 0
 
+        self.realtimeBufferReached = False
+        self.initMetadata = False
+        self.realtimeFixedPlotWindow = 20
+
+        # for networking with the real-time logger
+        self.realtimeNetworkInit = False
+        self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
         self.trajectory_span = 200
+        self.rtMetadataDict = {}
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -121,8 +136,10 @@ class SignalProvider(QThread):
             if not isinstance(value, h5py._hl.group.Group):
                 continue
             if key == "#refs#":
+                print("Skipping for refs")
                 continue
             if key == "log":
+                print("Skipping for log")
                 continue
             if "data" in value.keys():
                 data[key] = {}
@@ -145,13 +162,105 @@ class SignalProvider(QThread):
                         "".join(chr(c[0]) for c in value[ref])
                         for ref in elements_names_ref[0]
                     ]
+
             else:
                 data[key] = self.__populate_numerical_data(file_object=value)
 
         return data
 
+    def __populateRealtimeLoggerData(self, rawData, keys, value, recentTimestamp):
+        if keys[0] not in rawData:
+            rawData[keys[0]] = {}
+
+        if len(keys) == 1:
+            rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], value).reshape(-1, len(value))
+            rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
+
+            tempInitialTime = rawData[keys[0]]["timestamps"][0]
+            tempEndTime = rawData[keys[0]]["timestamps"][-1]
+            while tempEndTime - tempInitialTime > self.realtimeFixedPlotWindow:
+                rawData[keys[0]]["data"] = np.delete(rawData[keys[0]]["data"], 0, axis=0)
+                rawData[keys[0]]["timestamps"] = np.delete(rawData[keys[0]]["timestamps"], 0)
+                tempInitialTime = rawData[keys[0]]["timestamps"][0]
+                tempEndTime = rawData[keys[0]]["timestamps"][-1]
+
+        else:
+            self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
+
+    def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
+        if keys[0] == "timestamps":
+            return
+        if keys[0] not in rawData:
+            rawData[keys[0]] = {}
+
+        if len(keys) == 1:
+            if len(value) == 0:
+                del rawData[keys[0]]
+                return
+            if "elements_names" not in rawData[keys[0]]:
+                rawData[keys[0]]["elements_names"] = np.array([])
+                rawData[keys[0]]["data"] = np.array([])
+                rawData[keys[0]]["timestamps"] = np.array([])
+
+            rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
+        else:
+            self.__populateRealtimeLoggerMetadata(rawData[keys[0]], keys[1:], value)
+
+
+    def maintain_connection(self):
+        if not self.realtimeNetworkInit:
+            yarp.Network.init()
+
+            param_handler = blf.parameters_handler.YarpParametersHandler()
+            param_handler.set_parameter_string("remote", "/rtLoggingVectorCollections") # you must have some local port as well
+            param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
+            param_handler.set_parameter_string("carrier", "udp")
+            self.vectorCollectionsClient.initialize(param_handler)
+
+            self.vectorCollectionsClient.connect()
+            self.realtimeNetworkInit = True
+            self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().vectors
+            if not self.rtMetadataDict:
+                print("Failed to read realtime YARP port, closing")
+                return False
+
+            self.joints_name = self.rtMetadataDict["robot_realtime::description_list"]
+            self.robot_name = self.rtMetadataDict["robot_realtime::yarp_robot_name"][0]
+            for keyString, value in self.rtMetadataDict.items():
+                keys = keyString.split("::")
+                self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+            del self.data["robot_realtime"]["description_list"]
+            del self.data["robot_realtime"]["yarp_robot_name"]
+
+        vc_input = self.vectorCollectionsClient.read_data(True)
+
+        if not vc_input:
+            print("Failed to read realtime YARP port, closing")
+            return False
+        else:
+            # Update the timestamps
+            recentTimestamp = vc_input["robot_realtime::timestamps"][0]
+            self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
+            del vc_input["robot_realtime::timestamps"]
+
+            # Keep the data within the fixed time interval
+            while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
+                self.initial_time = self.timestamps[0]
+                self.end_time = self.timestamps[-1]
+                self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
+            self.initial_time = self.timestamps[0]
+            self.end_time = self.timestamps[-1]
+
+            # Store the new data that comes in
+            for keyString, value in vc_input.items():
+                keys = keyString.split("::")
+                self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
+
+            return True
+
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
+
             root_variable = file.get(self.root_name)
             self.data = self.__populate_numerical_data(file)
 

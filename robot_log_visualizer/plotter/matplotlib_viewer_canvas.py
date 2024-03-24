@@ -83,9 +83,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
     def resume_animation(self):
         self.vertical_line_anim.resume()
 
-    # Function to handle pick event
     def on_pick(self, event):
-        print(event)
         if isinstance(event.artist, plt.Line2D):
             # get the color of the line
             color = event.artist.get_color()

@@ -7,6 +7,10 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import matplotlib.animation as animation
+from robot_log_visualizer.plotter.color_palette import ColorPalette
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class MatplotlibViewerCanvas(FigureCanvas):
@@ -36,6 +40,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.axes.set_ylabel("value")
         self.axes.grid(True)
 
+        self.annotations = {}
+        self.selected_points = {}
+        self.frame_legend = None
+
         # start the vertical line animation
         (self.vertical_line,) = self.axes.plot([], [], "-", lw=1, c="k")
 
@@ -55,6 +63,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # add plot toolbar from matplotlib
         self.toolbar = NavigationToolbar(self, self)
 
+        # connect an event on click
+        self.fig.canvas.mpl_connect("pick_event", self.on_pick)
+
+        self.color_palette = ColorPalette()
+
     def quit_animation(self):
         # https://stackoverflow.com/questions/32280140/cannot-delete-matplotlib-animation-funcanimation-objects
         # this is to close the event associated to the animation
@@ -69,6 +82,80 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
     def resume_animation(self):
         self.vertical_line_anim.resume()
+
+    def on_pick(self, event):
+        if isinstance(event.artist, plt.Line2D):
+            # get the color of the line
+            color = event.artist.get_color()
+
+            line_xdata = event.artist.get_xdata()
+            line_ydata = event.artist.get_ydata()
+            index = event.ind[0]
+            x_data = line_xdata[index]
+            y_data = line_ydata[index]
+
+            # find the nearest annotated point to the clicked point if yes we assume the user want to remove it
+            should_remove = False
+            min_distance = float("inf")
+            nearest_point = None
+            radius = 0.01
+            for x, y in self.annotations.keys():
+                distance = np.sqrt((x - x_data) ** 2 + (y - y_data) ** 2)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_point = (x, y)
+
+            if min_distance < radius:
+                x_data, y_data = nearest_point
+                should_remove = True
+
+            # Stop the animation
+            self.vertical_line_anim._stop()
+
+            if should_remove:
+                # Remove the annotation
+                self.annotations[(x_data, y_data)].remove()
+                del self.annotations[(x_data, y_data)]
+
+                # Remove the point
+                self.selected_points[(x_data, y_data)].remove()
+                del self.selected_points[(x_data, y_data)]
+            else:
+                # Otherwise, create a new annotation and change color of the point
+                annotation = self.axes.annotate(
+                    f"({x_data:.2f}, {y_data:.2f})",
+                    xy=(x_data, y_data),
+                    xytext=(5, 5),
+                    textcoords="offset points",
+                    fontsize=10,
+                    bbox=dict(
+                        boxstyle="round,pad=0.3",
+                        facecolor=self.frame_legend.get_facecolor(),
+                        edgecolor=self.frame_legend.get_edgecolor(),
+                        linewidth=self.frame_legend.get_linewidth(),
+                    ),
+                    color="black",
+                )
+
+                self.annotations[(x_data, y_data)] = annotation
+                selected_point = self.axes.plot(
+                    x_data,
+                    y_data,
+                    "o",
+                    markersize=5,
+                    markerfacecolor=color,
+                    markeredgecolor="k",
+                )
+                self.selected_points[(x_data, y_data)] = selected_point[0]
+
+            # Restart the animation
+            self.vertical_line_anim = animation.FuncAnimation(
+                self.fig,
+                self.update_vertical_line,
+                init_func=self.init_vertical_line,
+                interval=self.period_in_ms,
+                blit=True,
+            )
 
     def update_plots(self, paths, legends):
         for path, legend in zip(paths, legends):
@@ -88,7 +175,11 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 timestamps = data["timestamps"] - self.signal_provider.initial_time
 
                 (self.active_paths[path_string],) = self.axes.plot(
-                    timestamps, datapoints, label=legend_string
+                    timestamps,
+                    datapoints,
+                    label=legend_string,
+                    picker=True,
+                    color=next(self.color_palette),
                 )
 
         paths_to_be_canceled = []
@@ -110,6 +201,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # TODO: this part could be optimized
         self.vertical_line_anim._stop()
         self.axes.legend()
+
+        if not self.frame_legend:
+            self.frame_legend = self.axes.legend().get_frame()
+
         self.vertical_line_anim = animation.FuncAnimation(
             self.fig,
             self.update_vertical_line,
@@ -133,4 +228,9 @@ class MatplotlibViewerCanvas(FigureCanvas):
         # Draw vertical line at current index
 
         self.vertical_line.set_data([current_time, current_time], self.axes.get_ylim())
-        return self.vertical_line, *(self.active_paths.values())
+        return (
+            self.vertical_line,
+            *(self.active_paths.values()),
+            *(self.selected_points.values()),
+            *(self.annotations.values()),
+        )

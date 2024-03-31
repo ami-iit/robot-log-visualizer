@@ -97,15 +97,22 @@ class MatplotlibViewerCanvas(FigureCanvas):
             # find the nearest annotated point to the clicked point if yes we assume the user want to remove it
             should_remove = False
             min_distance = float("inf")
-            nearest_point = None
-            radius = 0.01
+            nearest_point = (float("inf"), float("inf"))
+
+            # The radius of an annotation is 1% of the axis range
+            radius_x = 0.01 * (self.axes.get_xlim()[1] - self.axes.get_xlim()[0])
+            radius_y = 0.01 * (self.axes.get_ylim()[1] - self.axes.get_ylim()[0])
+            ellipsis_center = (x_data, y_data)
             for x, y in self.annotations.keys():
                 distance = np.sqrt((x - x_data) ** 2 + (y - y_data) ** 2)
                 if distance < min_distance:
                     min_distance = distance
                     nearest_point = (x, y)
 
-            if min_distance < radius:
+            if (
+                np.abs(x_data - nearest_point[0]) < radius_x
+                and np.abs(y_data - nearest_point[1]) < radius_y
+            ):
                 x_data, y_data = nearest_point
                 should_remove = True
 
@@ -122,8 +129,28 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 del self.selected_points[(x_data, y_data)]
             else:
                 # Otherwise, create a new annotation and change color of the point
+                # The annotation represents the value of the point with a precision equal to the grid precision
+                x_grid_precision = int(
+                    np.ceil(
+                        -np.log10(self.axes.get_xlim()[1] - self.axes.get_xlim()[0])
+                    )
+                )
+                x_grid_precision = max(0, x_grid_precision) + 2
+                y_grid_precision = int(
+                    np.ceil(
+                        -np.log10(self.axes.get_ylim()[1] - self.axes.get_ylim()[0])
+                    )
+                )
+                y_grid_precision = max(0, y_grid_precision) + 2
+
+                format_string_x = "{:." + str(x_grid_precision) + "f}"
+                format_string_y = "{:." + str(y_grid_precision) + "f}"
+
+                x_data_str = format_string_x.format(x_data)
+                y_data_str = format_string_y.format(y_data)
+
                 annotation = self.axes.annotate(
-                    f"({x_data:.2f}, {y_data:.2f})",
+                    x_data_str + ", " + y_data_str,
                     xy=(x_data, y_data),
                     xytext=(5, 5),
                     textcoords="offset points",

@@ -185,24 +185,34 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 blit=True,
             )
 
-    def update_plots(self, paths, legends):
+    def update_plots(self, paths, legends, realtimePlot):
         self.axes.cla()
+        realtimeColorIndex = 0
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
 
-            if path_string not in self.active_paths.keys():
-                data = self.signal_provider.data
-                for key in path[:-1]:
-                    data = data[key]
-                try:
-                    datapoints = data["data"][:, int(path[-1])]
-                except IndexError:
-                    # This happens in the case the variable is a scalar.
-                    datapoints = data["data"][:]
+            data = self.signal_provider.data.copy()
+            for key in path[:-1]:
+                data = data[key]
+            try:
+                datapoints = data["data"][:, int(path[-1])]
+            except IndexError:
+                # This happens in the case the variable is a scalar.
+                datapoints = data["data"][:]
 
-                timestamps = data["timestamps"] - self.signal_provider.initial_time
+            timestamps = data["timestamps"] - self.signal_provider.initial_time
 
+            if realtimePlot:
+                (self.active_paths[path_string],) = self.axes.plot(
+                    timestamps,
+                    datapoints,
+                    label=legend_string,
+                    picker=True,
+                    color=self.color_palette.get_color(realtimeColorIndex),
+                )
+                realtimeColorIndex = realtimeColorIndex + 1
+            else:
                 (self.active_paths[path_string],) = self.axes.plot(
                     timestamps,
                     datapoints,
@@ -210,6 +220,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
                     picker=True,
                     color=next(self.color_palette),
                 )
+
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():
@@ -232,8 +243,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized
+
         self.vertical_line_anim._stop()
         self.axes.legend()
+        self.axes.grid()
 
         if not self.frame_legend:
             self.frame_legend = self.axes.legend().get_frame()

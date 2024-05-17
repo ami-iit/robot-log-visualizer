@@ -186,7 +186,8 @@ class MatplotlibViewerCanvas(FigureCanvas):
             )
 
     def update_plots(self, paths, legends, realtimePlot):
-        self.axes.cla()
+        if realtimePlot:
+            self.axes.cla()
         realtimeColorIndex = 0
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)

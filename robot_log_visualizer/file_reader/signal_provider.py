@@ -219,7 +219,6 @@ class SignalProvider(QThread):
             self.realtimeNetworkInit = True
             self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().vectors
             if not self.rtMetadataDict:
-                print("Failed to read realtime YARP port, closing")
                 return False
 
             self.joints_name = self.rtMetadataDict["robot_realtime::description_list"]
@@ -233,7 +232,6 @@ class SignalProvider(QThread):
         vc_input = self.vectorCollectionsClient.read_data(True)
 
         if not vc_input:
-            print("Failed to read realtime YARP port, closing")
             return False
         else:
             # Update the timestamps

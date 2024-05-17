@@ -248,6 +248,7 @@ class Ui_MainWindow(object):
 
         # Add a GUI action for connecting to the YARP port
         # for real-time logging
+
         self.actionConnect = QtWidgets.QAction(MainWindow)
         self.actionConnect.setObjectName("actionConnect")
 
@@ -284,8 +285,13 @@ class Ui_MainWindow(object):
         self.actionQuit.setText(_translate("MainWindow", "&Quit"))
         self.actionQuit.setShortcut(_translate("MainWindow", "Ctrl+Q"))
         self.actionOpen.setText(_translate("MainWindow", "&Open"))
-        self.actionConnect.setText(_translate("MainWindow", "Realtime Connect"))
+        try:
+            import bipedal_locomotion_framework.bindings as blf
+            self.actionConnect.setText(_translate("MainWindow", "Realtime Connect"))
+        except ImportError:
+            self.actionConnect.setText(_translate("MainWindow", "Install BLF for RT Connect Functionality"))
         self.actionOpen.setShortcut(_translate("MainWindow", "Ctrl+O"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionSet_Robot_Model.setText(_translate("MainWindow", "Set Robot Model"))
+
 from PyQt5 import QtWebEngineWidgets

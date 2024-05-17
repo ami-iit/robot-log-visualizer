@@ -10,7 +10,6 @@ from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 import idyntree.swig as idyn
 
-import bipedal_locomotion_framework.bindings as blf
 
 # for real-time logging
 import yarp
@@ -39,6 +38,13 @@ class SignalProvider(QThread):
 
     def __init__(self, period: float):
         QThread.__init__(self)
+
+        self.blfInstalled = True
+        try:
+            import bipedal_locomotion_framework.bindings as blf
+            self.blf = blf
+        except ImportError:
+            self.blfInstalled = False
 
         # set device state
         self._state = PeriodicThreadState.pause
@@ -78,7 +84,8 @@ class SignalProvider(QThread):
 
         # for networking with the real-time logger
         self.realtime_network_init = False
-        self.vector_collections_client = blf.yarp_utilities.VectorsCollectionClient()
+        if self.blfInstalled:
+            self.vector_collections_client = blf.yarp_utilities.VectorsCollectionClient()
         self.trajectory_span = 200
         self.rt_metadata_dict = {}
 
@@ -207,7 +214,7 @@ class SignalProvider(QThread):
         if not self.realtime_network_init:
             yarp.Network.init()
 
-            param_handler = blf.parameters_handler.YarpParametersHandler()
+            param_handler = self.blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/rtLoggingVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")

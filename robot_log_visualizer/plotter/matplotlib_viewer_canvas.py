@@ -247,7 +247,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         self.vertical_line_anim._stop()
         self.axes.legend()
-        self.axes.grid()
+        self.axes.grid(True)
 
         if not self.frame_legend:
             self.frame_legend = self.axes.legend().get_frame()

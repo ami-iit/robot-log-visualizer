@@ -236,7 +236,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         if realtime_plot:
             #self.axes.autoscale()
-            self.axes.set_xlim(0, self.signal_provider.realtimeFixedPlotWindow)
+            self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
         else:
             self.axes.set_xlim(
                 0, self.signal_provider.end_time - self.signal_provider.initial_time

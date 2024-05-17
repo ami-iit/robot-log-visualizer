@@ -731,8 +731,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # Do initial connection to populate the necessary data
         if not self.signal_provider.maintain_connection():
-            self.text_logger.add_entry("Could not connect to YARP server", time.time())
-            self.realtimeConnectionEnabled = False
+            self.logger.write_to_log("Could not connect to the real-time logger.")
+            self.realtime_connection_enabled = False
             return
         self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui

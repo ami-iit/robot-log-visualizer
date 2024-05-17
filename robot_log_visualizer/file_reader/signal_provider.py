@@ -136,10 +136,8 @@ class SignalProvider(QThread):
             if not isinstance(value, h5py._hl.group.Group):
                 continue
             if key == "#refs#":
-                print("Skipping for refs")
                 continue
             if key == "log":
-                print("Skipping for log")
                 continue
             if "data" in value.keys():
                 data[key] = {}

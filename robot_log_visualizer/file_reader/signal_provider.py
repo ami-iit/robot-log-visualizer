@@ -2,7 +2,6 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-import sys
 import time
 import math
 import h5py
@@ -15,7 +14,6 @@ import bipedal_locomotion_framework.bindings as blf
 
 # for real-time logging
 import yarp
-import json
 
 
 class TextLoggingMsg:

@@ -37,8 +37,6 @@ class MeshcatProvider(QThread):
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
 
-        self._realtimeMeshUpdate = False
-
     @property
     def state(self):
         locker = QMutexLocker(self.state_lock)

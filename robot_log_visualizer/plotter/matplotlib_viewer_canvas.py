@@ -185,8 +185,8 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 blit=True,
             )
 
-    def update_plots(self, paths, legends, realtimePlot):
-        if realtimePlot:
+    def update_plots(self, paths, legends, realtime_plot):
+        if realtime_plot:
             self.axes.cla()
         realtimeColorIndex = 0
         for path, legend in zip(paths, legends):
@@ -204,7 +204,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
             timestamps = data["timestamps"] - self.signal_provider.initial_time
 
-            if realtimePlot:
+            if realtime_plot:
                 (self.active_paths[path_string],) = self.axes.plot(
                     timestamps,
                     datapoints,
@@ -234,7 +234,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        if realtimePlot:
+        if realtime_plot:
             #self.axes.autoscale()
             self.axes.set_xlim(0, self.signal_provider.realtimeFixedPlotWindow)
         else:

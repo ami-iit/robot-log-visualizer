@@ -135,7 +135,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.realtimePlotUpdaterThreadActive = False
         self.plotData = {}
         self.plottingLock = threading.Lock()
-        self.realtimeConnectionEnabled = False
+        self.realtime_connection_enabled = False
         self.timeoutAttempts = 20
         self.sleepPeriodBuffer = 0.02
 
@@ -437,7 +437,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
 
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
-            paths, legends, self.realtimeConnectionEnabled
+            paths, legends, self.realtime_connection_enabled
         )
         self.plottingLock.release()
 
@@ -562,9 +562,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider.wait()
 
         event.accept()
-        if self.realtimeConnectionEnabled:
-            self.realtimeConnectionEnabled = False
-            self.networkThread.join()
+        if self.realtime_connection_enabled:
+            self.realtime_connection_enabled = False
+            self.network_thread.join()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
@@ -695,9 +695,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.__load_mat_file(file_name)
 
     def establish_connection(self, root):
-        while self.realtimeConnectionEnabled:
+        while self.realtime_connection_enabled:
             if not self.signal_provider.maintain_connection():
-                self.realtimeConnectionEnabled = False
+                self.realtime_connection_enabled = False
                 break
 
             # populate text logging tree
@@ -719,14 +719,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
                 self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
                 self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"],
-                self.realtimeConnectionEnabled)
+                self.realtime_connection_enabled)
             self.plottingLock.release()
 
             time.sleep(self.animation_period + self.sleepPeriodBuffer)
-            self.meshcat_provider.updateMeshRealtime()
+            self.meshcat_provider.update_mesh_realtime()
 
     def connect_realtime_logger(self):
-        self.realtimeConnectionEnabled = True
+        self.realtime_connection_enabled = True
         self.signal_provider.root_name = "robot_realtime"
 
         # Do initial connection to populate the necessary data
@@ -763,8 +763,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
-        self.networkThread = threading.Thread(target=self.establish_connection, args=(root,))
-        self.networkThread.start()
+        self.network_thread = threading.Thread(target=self.establish_connection, args=(root,))
+        self.network_thread.start()
 
 
     def open_about(self):

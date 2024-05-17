@@ -74,13 +74,13 @@ class SignalProvider(QThread):
 
         self.realtimeBufferReached = False
         self.initMetadata = False
-        self.realtimeFixedPlotWindow = 20
+        self.realtime_fixed_plot_window = 20
 
         # for networking with the real-time logger
-        self.realtimeNetworkInit = False
-        self.vectorCollectionsClient = blf.yarp_utilities.VectorsCollectionClient()
+        self.realtime_network_init = False
+        self.vector_collections_client = blf.yarp_utilities.VectorsCollectionClient()
         self.trajectory_span = 200
-        self.rtMetadataDict = {}
+        self.rt_metadata_dict = {}
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -164,81 +164,81 @@ class SignalProvider(QThread):
 
         return data
 
-    def __populateRealtimeLoggerData(self, rawData, keys, value, recentTimestamp):
-        if keys[0] not in rawData:
-            rawData[keys[0]] = {}
+    def __populate_realtime_logger_data(self, raw_data, keys, value, recent_timestamp):
+        if keys[0] not in raw_data:
+            raw_data[keys[0]] = {}
 
         if len(keys) == 1:
-            rawData[keys[0]]["data"] = np.append(rawData[keys[0]]["data"], value).reshape(-1, len(value))
-            rawData[keys[0]]["timestamps"] = np.append(rawData[keys[0]]["timestamps"], recentTimestamp)
+            raw_data[keys[0]]["data"] = np.append(raw_data[keys[0]]["data"], value).reshape(-1, len(value))
+            raw_data[keys[0]]["timestamps"] = np.append(raw_data[keys[0]]["timestamps"], recent_timestamp)
 
-            tempInitialTime = rawData[keys[0]]["timestamps"][0]
-            tempEndTime = rawData[keys[0]]["timestamps"][-1]
-            while tempEndTime - tempInitialTime > self.realtimeFixedPlotWindow:
-                rawData[keys[0]]["data"] = np.delete(rawData[keys[0]]["data"], 0, axis=0)
-                rawData[keys[0]]["timestamps"] = np.delete(rawData[keys[0]]["timestamps"], 0)
-                tempInitialTime = rawData[keys[0]]["timestamps"][0]
-                tempEndTime = rawData[keys[0]]["timestamps"][-1]
+            temp_initial_time = raw_data[keys[0]]["timestamps"][0]
+            temp_end_time = raw_data[keys[0]]["timestamps"][-1]
+            while temp_end_time - temp_initial_time > self.realtime_fixed_plot_window:
+                raw_data[keys[0]]["data"] = np.delete(raw_data[keys[0]]["data"], 0, axis=0)
+                raw_data[keys[0]]["timestamps"] = np.delete(raw_data[keys[0]]["timestamps"], 0)
+                temp_initial_time = raw_data[keys[0]]["timestamps"][0]
+                temp_end_time = raw_data[keys[0]]["timestamps"][-1]
 
         else:
-            self.__populateRealtimeLoggerData(rawData[keys[0]], keys[1:], value, recentTimestamp)
+            self.__populate_realtime_logger_data(raw_data[keys[0]], keys[1:], value, recent_timestamp)
 
-    def __populateRealtimeLoggerMetadata(self, rawData, keys, value):
+    def __populate_realtime_logger_metadata(self, raw_data, keys, value):
         if keys[0] == "timestamps":
             return
-        if keys[0] not in rawData:
-            rawData[keys[0]] = {}
+        if keys[0] not in raw_data:
+            raw_data[keys[0]] = {}
 
         if len(keys) == 1:
             if len(value) == 0:
-                del rawData[keys[0]]
+                del raw_data[keys[0]]
                 return
-            if "elements_names" not in rawData[keys[0]]:
-                rawData[keys[0]]["elements_names"] = np.array([])
-                rawData[keys[0]]["data"] = np.array([])
-                rawData[keys[0]]["timestamps"] = np.array([])
+            if "elements_names" not in raw_data[keys[0]]:
+                raw_data[keys[0]]["elements_names"] = np.array([])
+                raw_data[keys[0]]["data"] = np.array([])
+                raw_data[keys[0]]["timestamps"] = np.array([])
 
-            rawData[keys[0]]["elements_names"] = np.append(rawData[keys[0]]["elements_names"], value)
+            raw_data[keys[0]]["elements_names"] = np.append(raw_data[keys[0]]["elements_names"], value)
         else:
-            self.__populateRealtimeLoggerMetadata(rawData[keys[0]], keys[1:], value)
+            self.__populate_realtime_logger_metadata(raw_data[keys[0]], keys[1:], value)
 
 
     def maintain_connection(self):
-        if not self.realtimeNetworkInit:
+        if not self.realtime_network_init:
             yarp.Network.init()
 
             param_handler = blf.parameters_handler.YarpParametersHandler()
             param_handler.set_parameter_string("remote", "/rtLoggingVectorCollections") # you must have some local port as well
             param_handler.set_parameter_string("local", "/visualizerInput") # remote must match the server
             param_handler.set_parameter_string("carrier", "udp")
-            self.vectorCollectionsClient.initialize(param_handler)
+            self.vector_collections_client.initialize(param_handler)
 
-            self.vectorCollectionsClient.connect()
-            self.realtimeNetworkInit = True
-            self.rtMetadataDict = self.vectorCollectionsClient.get_metadata().vectors
-            if not self.rtMetadataDict:
+            self.vector_collections_client.connect()
+            self.realtime_network_init = True
+            self.rt_metadata_dict = self.vector_collections_client.get_metadata().vectors
+            if not self.rt_metadata_dict:
                 return False
 
-            self.joints_name = self.rtMetadataDict["robot_realtime::description_list"]
-            self.robot_name = self.rtMetadataDict["robot_realtime::yarp_robot_name"][0]
-            for keyString, value in self.rtMetadataDict.items():
-                keys = keyString.split("::")
-                self.__populateRealtimeLoggerMetadata(self.data, keys, value)
+            self.joints_name = self.rt_metadata_dict["robot_realtime::description_list"]
+            self.robot_name = self.rt_metadata_dict["robot_realtime::yarp_robot_name"][0]
+            for key_string, value in self.rt_metadata_dict.items():
+                keys = key_string.split("::")
+                self.__populate_realtime_logger_metadata(self.data, keys, value)
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
 
-        vc_input = self.vectorCollectionsClient.read_data(True)
+        vc_input = self.vector_collections_client.read_data(True)
 
         if not vc_input:
             return False
         else:
             # Update the timestamps
-            recentTimestamp = vc_input["robot_realtime::timestamps"][0]
-            self.timestamps = np.append(self.timestamps, recentTimestamp).reshape(-1)
+            recent_timestamp = vc_input["robot_realtime::timestamps"][0]
+            self.timestamps = np.append(self.timestamps, recent_timestamp).reshape(-1)
             del vc_input["robot_realtime::timestamps"]
 
             # Keep the data within the fixed time interval
-            while recentTimestamp - self.timestamps[0] > self.realtimeFixedPlotWindow:
+            while recent_timestamp - self.timestamps[0] > self.realtime_fixed_plot_window:
                 self.initial_time = self.timestamps[0]
                 self.end_time = self.timestamps[-1]
                 self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
@@ -246,9 +246,9 @@ class SignalProvider(QThread):
             self.end_time = self.timestamps[-1]
 
             # Store the new data that comes in
-            for keyString, value in vc_input.items():
-                keys = keyString.split("::")
-                self.__populateRealtimeLoggerData(self.data, keys, value, recentTimestamp)
+            for key_string, value in vc_input.items():
+                keys = key_string.split("::")
+                self.__populate_realtime_logger_data(self.data, keys, value, recent_timestamp)
 
             return True
 

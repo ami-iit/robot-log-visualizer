@@ -226,7 +226,7 @@ class MeshcatProvider(QThread):
                 return
 
     # For the real-time logger
-    def updateMeshRealtime(self):
+    def update_mesh_realtime(self):
         self._signal_provider.index = len(self._signal_provider.timestamps) - 1
         robot_state = self._signal_provider.get_robot_state_at_index(self._signal_provider.index)
 

@@ -55,6 +55,9 @@ Once you have installed the `robot-log-visualizer` you can run it from the termi
 You can navigate the dataset thanks to the slider or by pressing `Ctrl-f` and `Ctrl-b` to move
 forward and backward.
 
+> [!IMPORTANT]  
+> `robot-log-visualizer` only supports reading `.mat` file [version 7.3 or newer](https://www.mathworks.com/help/matlab/import_export/mat-file-versions.html).
+
 ### 💡 Environment variables
 `robot-log-visualizer` looks for the model in the folders pointed by one of the following environment variables:
 `GAZEBO_MODEL_PATH`, `ROS_PACKAGE_PATH`, `AMENT_PREFIX_PATH` Please remember to add your model folder to one of these

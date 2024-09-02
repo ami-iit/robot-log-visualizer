@@ -234,7 +234,7 @@ class SignalProvider(QThread):
             del self.data["robot_realtime"]["description_list"]
             del self.data["robot_realtime"]["yarp_robot_name"]
 
-        vc_input = self.vector_collections_client.read_data(True)
+        vc_input = self.vector_collections_client.read_data(True).vectors
 
         if not vc_input:
             return False

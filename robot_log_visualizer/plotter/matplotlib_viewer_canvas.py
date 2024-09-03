@@ -186,9 +186,8 @@ class MatplotlibViewerCanvas(FigureCanvas):
             )
 
     def update_plots(self, paths, legends, realtime_plot):
-        if realtime_plot:
-            self.axes.cla()
-        realtimeColorIndex = 0
+        self.axes.cla()
+        colorIndex = 0
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
@@ -210,17 +209,18 @@ class MatplotlibViewerCanvas(FigureCanvas):
                     datapoints,
                     label=legend_string,
                     picker=True,
-                    color=self.color_palette.get_color(realtimeColorIndex),
+                    color=self.color_palette.get_color(colorIndex),
                 )
-                realtimeColorIndex = realtimeColorIndex + 1
+                colorIndex = colorIndex + 1
             else:
                 (self.active_paths[path_string],) = self.axes.plot(
                     timestamps,
                     datapoints,
                     label=legend_string,
                     picker=True,
-                    color=next(self.color_palette),
+                    color=self.color_palette.get_color(colorIndex),
                 )
+                colorIndex = colorIndex + 1
 
 
         paths_to_be_canceled = []

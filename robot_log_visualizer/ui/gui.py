@@ -201,7 +201,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
 
         if self.signal_provider.blfInstalled:
-            self.ui.actionConnect.triggered.connect(self.connect_realtime_logger)
+            self.ui.actionRealtime_Connect.triggered.connect(self.connect_realtime_logger)
+        else:
+            self.ui.actionRealtime_Connect.setText("Install BLF for RT Connect Functionality")
         self.ui.actionAbout.triggered.connect(self.open_about)
         self.ui.actionSet_Robot_Model.triggered.connect(self.open_set_robot_model)
 
@@ -735,6 +737,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if not self.signal_provider.maintain_connection():
             self.logger.write_to_log("Could not connect to the real-time logger.")
             self.realtime_connection_enabled = False
+            self.signal_provider.root_name = "robot_logger_device"
             return
         self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui

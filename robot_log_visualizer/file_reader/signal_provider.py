@@ -221,11 +221,14 @@ class SignalProvider(QThread):
             self.vector_collections_client.initialize(param_handler)
 
             self.vector_collections_client.connect()
-            self.realtime_network_init = True
-            self.rt_metadata_dict = self.vector_collections_client.get_metadata().vectors
-            if not self.rt_metadata_dict:
+            try:
+                self.rt_metadata_dict = self.vector_collections_client.get_metadata().vectors
+            except ValueError:
+                print("Error in retreiving the metadata from the logger")
+                print("Check if the logger is running and configured for realtime connection")
                 return False
 
+            self.realtime_network_init = True
             self.joints_name = self.rt_metadata_dict["robot_realtime::description_list"]
             self.robot_name = self.rt_metadata_dict["robot_realtime::yarp_robot_name"][0]
             for key_string, value in self.rt_metadata_dict.items():
@@ -261,7 +264,6 @@ class SignalProvider(QThread):
 
     def open_mat_file(self, file_name: str):
         with h5py.File(file_name, "r") as file:
-
             root_variable = file.get(self.root_name)
             self.data = self.__populate_numerical_data(file)
 

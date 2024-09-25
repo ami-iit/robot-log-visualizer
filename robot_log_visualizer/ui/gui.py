@@ -158,7 +158,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
         self.ui.actionQuit.setIcon(get_icon("close-circle-outline.svg"))
-        self.ui.actionConnect.setIcon(get_icon("connection-outline.png"))
         self.ui.actionOpen.setIcon(get_icon("folder-open-outline.svg"))
         self.ui.actionSet_Robot_Model.setIcon(get_icon("body-outline.svg"))
         self.setWindowIcon(get_icon("icon.png"))

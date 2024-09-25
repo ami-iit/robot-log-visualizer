@@ -503,6 +503,7 @@
      <string>&amp;File</string>
     </property>
     <addaction name="actionOpen"/>
+    <addaction name="actionRealtime_Connect"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -556,12 +557,20 @@
     <string>Set Robot Model</string>
    </property>
   </action>
+  <action name="actionRealtime_Connect">
+   <property name="text">
+    <string>Realtime Connect</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QWebEngineView</class>
    <extends>QWidget</extends>
-   <header>PyQt5.QtWebEngineWidgets</header>
+   <header location="global">QtWebEngineWidgets/QWebEngineView</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

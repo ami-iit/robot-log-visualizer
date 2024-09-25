@@ -3,6 +3,7 @@
 # Released under the terms of the BSD 3-Clause License
 
 # PyQt
+import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -184,30 +185,43 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 blit=True,
             )
 
-    def update_plots(self, paths, legends):
+    def update_plots(self, paths, legends, realtime_plot):
+        self.axes.cla()
+        colorIndex = 0
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
 
-            if path_string not in self.active_paths.keys():
-                data = self.signal_provider.data
-                for key in path[:-1]:
-                    data = data[key]
-                try:
-                    datapoints = data["data"][:, int(path[-1])]
-                except IndexError:
-                    # This happens in the case the variable is a scalar.
-                    datapoints = data["data"][:]
+            data = self.signal_provider.data.copy()
+            for key in path[:-1]:
+                data = data[key]
+            try:
+                datapoints = data["data"][:, int(path[-1])]
+            except IndexError:
+                # This happens in the case the variable is a scalar.
+                datapoints = data["data"][:]
 
-                timestamps = data["timestamps"] - self.signal_provider.initial_time
+            timestamps = data["timestamps"] - self.signal_provider.initial_time
 
+            if realtime_plot:
                 (self.active_paths[path_string],) = self.axes.plot(
                     timestamps,
                     datapoints,
                     label=legend_string,
                     picker=True,
-                    color=next(self.color_palette),
+                    color=self.color_palette.get_color(colorIndex),
                 )
+                colorIndex = colorIndex + 1
+            else:
+                (self.active_paths[path_string],) = self.axes.plot(
+                    timestamps,
+                    datapoints,
+                    label=legend_string,
+                    picker=True,
+                    color=self.color_palette.get_color(colorIndex),
+                )
+                colorIndex = colorIndex + 1
+
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():
@@ -220,14 +234,20 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        self.axes.set_xlim(
-            0, self.signal_provider.end_time - self.signal_provider.initial_time
-        )
+        if realtime_plot:
+            #self.axes.autoscale()
+            self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
+        else:
+            self.axes.set_xlim(
+                0, self.signal_provider.end_time - self.signal_provider.initial_time
+            )
 
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized
+
         self.vertical_line_anim._stop()
         self.axes.legend()
+        self.axes.grid(True)
 
         if not self.frame_legend:
             self.frame_legend = self.axes.legend().get_frame()

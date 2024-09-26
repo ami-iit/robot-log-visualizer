@@ -40,7 +40,7 @@ jobs:
         run: python -m build --sdist --wheel --outdir dist/ .
 
       - name: Archive artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist

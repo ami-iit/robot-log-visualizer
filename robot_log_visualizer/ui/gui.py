@@ -166,6 +166,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.video_items = []
         self.visualized_3d_points = set()
         self.visualized_3d_trajectories = set()
+        self.visualized_3d_arrows = set()
         self.visualized_3d_points_colors_palette = ColorPalette()
 
         self.toolButton_on_click()
@@ -731,8 +732,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         add_3d_point_str = "Show as a 3D point"
         add_3d_trajectory_str = "Show as a 3D trajectory"
+        add_3d_arrow_str = "Show as a 3D arrow"
         remove_3d_point_str = "Remove the 3D point"
         remove_3d_trajectory_str = "Remove the 3D trajectory"
+        remove_3d_arrow_str = "Remove the 3D arrow"
         use_as_base_position_str = "Use as base position"
         use_as_base_orientation_str = "Use as base orientation"
         dont_use_as_base_position_str = "Don't use as base position"
@@ -784,6 +787,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             else:
                 menu.addAction(use_as_base_orientation_str + " (xyzw Quaternion)")
 
+        if item_size == 6:
+            if item_key in self.visualized_3d_arrows:
+                menu.addAction(remove_3d_arrow_str)
+            else:
+                menu.addAction(add_3d_arrow_str)
+
         # show the menu
         action = menu.exec_(self.ui.variableTreeWidget.mapToGlobal(item_position))
         if action is None:
@@ -791,7 +800,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         item_path = self.get_item_path(item)
 
-        if action.text() == add_3d_point_str or action.text() == add_3d_trajectory_str:
+        if (
+            action.text() == add_3d_point_str
+            or action.text() == add_3d_trajectory_str
+            or action.text() == add_3d_arrow_str
+        ):
             color = next(self.visualized_3d_points_colors_palette)
 
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(color.as_hex())))
@@ -802,12 +815,20 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
                 self.signal_provider.register_3d_point(item_key, item_path)
                 self.visualized_3d_points.add(item_key)
-            else:
+            elif action.text() == add_3d_trajectory_str:
                 self.meshcat_provider.register_3d_trajectory(
                     item_key, list(color.as_normalized_rgb())
                 )
                 self.signal_provider.register_3d_trajectory(item_key, item_path)
                 self.visualized_3d_trajectories.add(item_key)
+            elif action.text() == add_3d_arrow_str:
+                self.meshcat_provider.register_3d_arrow(
+                    item_key, list(color.as_normalized_rgb())
+                )
+                self.signal_provider.register_3d_arrow(item_key, item_path)
+                self.visualized_3d_arrows.add(item_key)
+            else:
+                raise ValueError("Unknown action")
 
         if action.text() == remove_3d_point_str:
             self.meshcat_provider.unregister_3d_point(item_key)
@@ -819,6 +840,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.meshcat_provider.unregister_3d_trajectory(item_key)
             self.signal_provider.unregister_3d_trajectory(item_key)
             self.visualized_3d_trajectories.remove(item_key)
+            item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+
+        if action.text() == remove_3d_arrow_str:
+            self.meshcat_provider.unregister_3d_arrow(item_key)
+            self.signal_provider.unregister_3d_arrow(item_key)
+            self.visualized_3d_arrows.remove(item_key)
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
 
         if (

@@ -36,6 +36,7 @@ class MeshcatProvider(QThread):
         self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
+        self._register_3d_arrow = set()
 
     @property
     def state(self):
@@ -56,6 +57,14 @@ class MeshcatProvider(QThread):
             radius=radius, color=color, shape_name=point_path
         )
 
+    def register_3d_arrow(self, arrow_path, color):
+        radius = 0.02
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._register_3d_arrow.add(arrow_path)
+        self._meshcat_visualizer.load_arrow(
+            radius=radius, color=color, shape_name=arrow_path
+        )
+
     def register_3d_trajectory(self, trajectory_path, color):
         locker = QMutexLocker(self.meshcat_visualizer_mutex)
         self._registered_3d_trajectories[trajectory_path] = (False, color)
@@ -69,6 +78,11 @@ class MeshcatProvider(QThread):
         locker = QMutexLocker(self.meshcat_visualizer_mutex)
         self._registered_3d_trajectories.pop(trajectory_path, None)
         self._meshcat_visualizer.delete(shape_name=trajectory_path)
+
+    def unregister_3d_arrow(self, arrow_path):
+        locker = QMutexLocker(self.meshcat_visualizer_mutex)
+        self._register_3d_arrow.remove(arrow_path)
+        self._meshcat_visualizer.delete(shape_name=arrow_path)
 
     def load_model(self, considered_joints, model_name):
         def get_model_path_from_envs(env_list):
@@ -214,6 +228,19 @@ class MeshcatProvider(QThread):
                         linewidth=5.0,
                         shape_name=trajectory_path,
                         color=self._registered_3d_trajectories[trajectory_path][1],
+                    )
+
+                for (
+                    arrow_path,
+                    arrow,
+                ) in self._signal_provider.get_3d_arrow_at_index(index).items():
+                    if arrow_path not in self._register_3d_arrow:
+                        continue
+
+                    self._meshcat_visualizer.set_arrow_transform(
+                        origin=arrow[0:3],
+                        vector=arrow[3:6] / self._signal_provider.max_arrow,
+                        shape_name=arrow_path,
                     )
 
                 self.meshcat_visualizer_mutex.unlock()

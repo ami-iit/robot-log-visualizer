@@ -51,6 +51,10 @@ class SignalProvider(QThread):
         self._3d_trajectories_path = {}
         self._3d_trajectories_path_lock = QMutex()
 
+        self._3d_arrows = {}
+        self._3d_arrows_path_lock = QMutex()
+        self.max_arrow = 0
+
         self.period = period
 
         self.data = {}
@@ -319,6 +323,18 @@ class SignalProvider(QThread):
 
         return points
 
+    def get_3d_arrow_at_index(self, index):
+        arrows = {}
+
+        self._3d_arrows_path_lock.lock()
+
+        for key, value in self._3d_arrows.items():
+            arrows[key] = self.get_item_from_path_at_index(value, index)
+
+        self._3d_arrows_path_lock.unlock()
+
+        return arrows
+
     def get_3d_trajectory_at_index(self, index):
         trajectories = {}
 
@@ -353,6 +369,20 @@ class SignalProvider(QThread):
         self._3d_points_path_lock.lock()
         del self._3d_points_path[key]
         self._3d_points_path_lock.unlock()
+
+    def register_3d_arrow(self, key, arrow_path):
+        self._3d_arrows_path_lock.lock()
+        self._3d_arrows[key] = arrow_path
+        for _, value in self._3d_arrows.items():
+            data, _ = self.get_item_from_path(arrow_path)
+            arrow = data[:, 3:]
+            self.max_arrow = max(np.max(np.linalg.norm(arrow, axis=1)), self.max_arrow)
+        self._3d_arrows_path_lock.unlock()
+
+    def unregister_3d_arrow(self, key):
+        self._3d_arrows_path_lock.lock()
+        del self._3d_arrows[key]
+        self._3d_arrows_path_lock.unlock()
 
     def register_3d_trajectory(self, key, trajectory_path):
         self._3d_trajectories_path_lock.lock()

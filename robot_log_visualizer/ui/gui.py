@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem,
 )
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from robot_log_visualizer.signal_provider.realtime_signal_provider import RealtimeSignalProvider
 
 from robot_log_visualizer.ui.plot_item import PlotItem
 from robot_log_visualizer.ui.video_item import VideoItem
@@ -50,9 +51,6 @@ from pyqtconsole.console import PythonConsole
 import pyqtconsole.highlighter as hl
 
 import time
-
-import yarp
-
 
 class SetRobotModelDialog(QtWidgets.QDialog):
     def __init__(
@@ -127,9 +125,11 @@ def get_icon(icon_name):
     return icon
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
-    def __init__(self, signal_provider, meshcat_provider, animation_period):
+    def __init__(self, signal_provider_period, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
+
+        self.signal_provider_period = signal_provider_period
 
         # for realtime logging
         self.realtimePlotUpdaterThreadActive = False
@@ -164,9 +164,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.about = About()
 
-        self.signal_provider = signal_provider
-        self.signal_size = len(self.signal_provider)
-        self.signal_provider.register_update_index(self.update_index)
+        self.signal_provider = None
 
         self.meshcat_provider = meshcat_provider
 
@@ -199,7 +197,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
 
-        if self.signal_provider.blfInstalled:
+        realtime_dependencies_installed = True
+        try:
+            import bipedal_locomotion_framework as blf
+            import yarp
+        except ImportError:
+            realtime_dependencies_installed = False
+
+        if realtime_dependencies_installed:
             self.ui.actionRealtime_Connect.triggered.connect(self.connect_realtime_logger)
         else:
             self.ui.actionRealtime_Connect.setText("Install BLF for RT Connect Functionality")
@@ -323,8 +328,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.slider_pressed = False
     def toolButton_on_click(self):
         self.plot_items.append(
-            PlotItem(signal_provider=self.signal_provider, period=self.animation_period)
+            PlotItem(period=self.animation_period)
         )
+        self.plot_items[-1].set_signal_provider(self.signal_provider)
         self.ui.tabPlotWidget.addTab(self.plot_items[-1], "Plot")
 
         if self.ui.tabPlotWidget.count() == 1:
@@ -697,9 +703,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if file_name:
             self.__load_mat_file(file_name)
 
-    def establish_connection(self, root):
+    def maintain_connection(self, root):
         while self.realtime_connection_enabled:
-            if not self.signal_provider.maintain_connection():
+            if not self.signal_provider.open("/rtLoggingVectorCollections"):
                 self.realtime_connection_enabled = False
                 break
 
@@ -729,14 +735,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.meshcat_provider.update_mesh_realtime()
 
     def connect_realtime_logger(self):
+        self.signal_provider = RealtimeSignalProvider(self.signal_provider_period, "robot_realtime")
+        self.signal_size = len(self.signal_provider)
+        self.signal_provider.register_update_index(self.update_index)
         self.realtime_connection_enabled = True
-        self.signal_provider.root_name = "robot_realtime"
 
         # Do initial connection to populate the necessary data
-        if not self.signal_provider.maintain_connection():
+        if not self.signal_provider.open("/rtLoggingVectorCollections"):
             self.logger.write_to_log("Could not connect to the real-time logger.")
             self.realtime_connection_enabled = False
-            self.signal_provider.root_name = "robot_logger_device"
+            self.signal_provider = None
             return
         self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui
@@ -748,10 +756,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         )
         self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
 
-
-        # load the model
-        # self.signal_provider.joints_name = self.signal_provider.data["robot_realtime"]["description_list"]["elements_names"].tolist()
-        # self.signal_provider.robot_name = self.signal_provider.data["robot_realtime"]["yarp_robot_name"]["elements_names"][0]
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name
         ):
@@ -767,7 +771,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
-        self.network_thread = threading.Thread(target=self.establish_connection, args=(root,))
+        self.signal_provider.start()
+        self.meshcat_provider.set_signal_provider(self.signal_provider)
+        self.meshcat_provider.start()
+        for plot in self.plot_items:
+            plot.set_signal_provider(self.signal_provider)
+        self.network_thread = threading.Thread(target=self.maintain_connection, args=(root,))
         self.network_thread.start()
 
 

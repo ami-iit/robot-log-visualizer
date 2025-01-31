@@ -19,7 +19,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
     Inherits from FigureCanvasQTAgg in order to integrate with PyQt.
     """
 
-    def __init__(self, parent, signal_provider, period):
+    def __init__(self, parent, period):
         # create a new figure
         self.fig = Figure(dpi=100)
 
@@ -30,7 +30,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
         self.setParent(parent)
 
         # set signal provider
-        self.signal_provider = signal_provider
+        self.signal_provider = None
 
         # setup the plot and the animations
         self.index = 0
@@ -52,14 +52,14 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
         # active paths
         self.active_paths = {}
-
-        self.vertical_line_anim = animation.FuncAnimation(
-            self.fig,
-            self.update_vertical_line,
-            init_func=self.init_vertical_line,
-            interval=self.period_in_ms,
-            blit=True,
-        )
+        #
+        # self.vertical_line_anim = animation.FuncAnimation(
+        #     self.fig,
+        #     self.update_vertical_line,
+        #     init_func=self.init_vertical_line,
+        #     interval=self.period_in_ms,
+        #     blit=True,
+        # )
 
         # add plot toolbar from matplotlib
         self.toolbar = NavigationToolbar(self, self)
@@ -83,6 +83,20 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
     def resume_animation(self):
         self.vertical_line_anim.resume()
+
+    def set_signal_provider(self, signal_provider):
+        if signal_provider is None:
+            return
+        self.signal_provider = signal_provider
+        self.vertical_line_anim = animation.FuncAnimation(
+            self.fig,
+            self.update_vertical_line,
+            init_func=self.init_vertical_line,
+            interval=self.period_in_ms,
+            blit=True,
+        )
+
+
 
     def on_pick(self, event):
         if isinstance(event.artist, plt.Line2D):
@@ -177,13 +191,13 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 self.selected_points[(x_data, y_data)] = selected_point[0]
 
             # Restart the animation
-            self.vertical_line_anim = animation.FuncAnimation(
-                self.fig,
-                self.update_vertical_line,
-                init_func=self.init_vertical_line,
-                interval=self.period_in_ms,
-                blit=True,
-            )
+            # self.vertical_line_anim = animation.FuncAnimation(
+            #     self.fig,
+            #     self.update_vertical_line,
+            #     init_func=self.init_vertical_line,
+            #     interval=self.period_in_ms,
+            #     blit=True,
+            # )
 
     def update_plots(self, paths, legends, realtime_plot):
         self.axes.cla()

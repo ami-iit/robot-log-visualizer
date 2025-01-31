@@ -18,7 +18,7 @@ from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 
 class MeshcatProvider(QThread):
-    def __init__(self, signal_provider, period):
+    def __init__(self, period):
         QThread.__init__(self)
 
         self._state = PeriodicThreadState.pause
@@ -29,7 +29,7 @@ class MeshcatProvider(QThread):
         self.meshcat_visualizer_mutex = QMutex()
 
         self._is_model_loaded = False
-        self._signal_provider = signal_provider
+        self._signal_provider = None
 
         self.custom_model_path = ""
         self.custom_package_dir = ""
@@ -69,6 +69,9 @@ class MeshcatProvider(QThread):
         locker = QMutexLocker(self.meshcat_visualizer_mutex)
         self._registered_3d_trajectories.pop(trajectory_path, None)
         self._meshcat_visualizer.delete(shape_name=trajectory_path)
+
+    def set_signal_provider(self, signal_provider):
+        self._signal_provider = signal_provider
 
     def load_model(self, considered_joints, model_name):
         def get_model_path_from_envs(env_list):

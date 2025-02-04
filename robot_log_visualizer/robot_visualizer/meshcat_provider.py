@@ -228,14 +228,14 @@ class MeshcatProvider(QThread):
             if self.state == PeriodicThreadState.closed:
                 return
 
-    # For the real-time logger
-    def update_mesh_realtime(self):
-        self._signal_provider.index = len(self._signal_provider.timestamps) - 1
-        robot_state = self._signal_provider.get_robot_state_at_index(self._signal_provider.index)
+    # # For the real-time logger
+    # def update_mesh_realtime(self):
+    #     self._signal_provider.index = len(self._signal_provider.timestamps) - 1
+    #     robot_state = self._signal_provider.get_robot_state_at_index(self._signal_provider.index)
 
-        self._meshcat_visualizer.set_multibody_system_state(
-            base_position=robot_state["base_position"],
-            base_rotation=robot_state["base_orientation"],
-            joint_value=robot_state["joints_position"][self.model_joints_index],
-            model_name="robot",
-        )
+    #     self._meshcat_visualizer.set_multibody_system_state(
+    #         base_position=robot_state["base_position"],
+    #         base_rotation=robot_state["base_orientation"],
+    #         joint_value=robot_state["joints_position"][self.model_joints_index],
+    #         model_name="robot",
+    #     )

@@ -1,67 +1,124 @@
 # Copyright (C) 2022 Istituto Italiano di Tecnologia (IIT). All rights reserved.
 # This software may be modified and distributed under the terms of the
-# Released under the terms of the BSD 3-Clause License
+# BSD 3-Clause License
 
+import time
 import numpy as np
-from robot_log_visualizer.signal_provider.signal_provider import SignalProvider
+from collections import deque
+from robot_log_visualizer.signal_provider.signal_provider import (
+    SignalProvider,
+    ProviderType,
+)
+from robot_log_visualizer.utils.utils import PeriodicThreadState
+
+def are_deps_installed():
+    try:
+        import bipedal_locomotion_framework.bindings
+        import yarp
+    except ImportError:
+        return False
+    return True
 
 class RealtimeSignalProvider(SignalProvider):
     def __init__(self, period: float, signal_root_name: str):
-        super().__init__(period, signal_root_name)
+        """
+        Initialize the realtime signal provider.
 
+        - Initializes the network client.
+        - Sets up an internal buffer (using deques) to store data within a fixed time window.
+        """
+        super().__init__(period, signal_root_name, ProviderType.REALTIME)
+
+        if not are_deps_installed():
+            raise ImportError(
+                "The realtime signal provider requires the bipedal_locomotion_framework and yarp packages."
+            )
+
+        # Import realtime-related bindings.
         import bipedal_locomotion_framework.bindings as blf
 
-        self.initMetadata = False
-        self.realtime_fixed_plot_window = 20
-
-        # for networking with the real-time logger
-        self.realtime_network_init = False
         self.vector_collections_client = blf.yarp_utilities.VectorsCollectionClient()
+
+        # Time window (in seconds) for the online plot buffer.
+        self.realtime_fixed_plot_window = 20
+        self.realtime_network_init = False
+
+        # Dictionary for metadata retrieved once from the remote logger.
         self.rt_metadata_dict = {}
 
-    def __populate_realtime_logger_data(self, raw_data, keys, value, recent_timestamp):
+        # Global data buffers:
+        # - self.data holds the hierarchical data coming from the logger.
+        # - self.timestamps holds the timestamps (as a deque) for the global buffer.
+        self.data = {}
+        self.timestamps = deque()
+
+    def _update_data_buffer(
+        self, raw_data: dict, keys: list, value, recent_timestamp: float
+    ):
+        """
+        Recursively update the data buffers in the raw_data dictionary.
+        At a leaf node, the buffer is maintained as two deques:
+          - raw_data[key]["data"]
+          - raw_data[key]["timestamps"]
+        Any sample older than the fixed time window is removed.
+        """
         if keys[0] not in raw_data:
             raw_data[keys[0]] = {}
 
         if len(keys) == 1:
-            raw_data[keys[0]]["data"] = np.append(raw_data[keys[0]]["data"], value).reshape(-1, len(value))
-            raw_data[keys[0]]["timestamps"] = np.append(raw_data[keys[0]]["timestamps"], recent_timestamp)
-
-            temp_initial_time = raw_data[keys[0]]["timestamps"][0]
-            temp_end_time = raw_data[keys[0]]["timestamps"][-1]
-            while temp_end_time - temp_initial_time > self.realtime_fixed_plot_window:
-                raw_data[keys[0]]["data"] = np.delete(raw_data[keys[0]]["data"], 0, axis=0)
-                raw_data[keys[0]]["timestamps"] = np.delete(raw_data[keys[0]]["timestamps"], 0)
-                temp_initial_time = raw_data[keys[0]]["timestamps"][0]
-                temp_end_time = raw_data[keys[0]]["timestamps"][-1]
-
+            # Leaf node: initialize deques if needed.
+            if "data" not in raw_data[keys[0]]:
+                raw_data[keys[0]]["data"] = deque()
+                raw_data[keys[0]]["timestamps"] = deque()
+            raw_data[keys[0]]["data"].append(value)
+            raw_data[keys[0]]["timestamps"].append(recent_timestamp)
+            # Remove old data outside the time window.
+            while raw_data[keys[0]]["timestamps"] and (
+                recent_timestamp - raw_data[keys[0]]["timestamps"][0]
+                > self.realtime_fixed_plot_window
+            ):
+                raw_data[keys[0]]["data"].popleft()
+                raw_data[keys[0]]["timestamps"].popleft()
         else:
-            self.__populate_realtime_logger_data(raw_data[keys[0]], keys[1:], value, recent_timestamp)
+            # Recursive call for nested dictionaries.
+            self._update_data_buffer(
+                raw_data[keys[0]], keys[1:], value, recent_timestamp
+            )
 
-    def __populate_realtime_logger_metadata(self, raw_data, keys, value):
+    def _populate_realtime_logger_metadata(self, raw_data: dict, keys: list, value):
+        """
+        Recursively populate metadata into raw_data.
+        Here we simply store metadata (e.g. elements names) into a list.
+        """
         if keys[0] == "timestamps":
             return
         if keys[0] not in raw_data:
             raw_data[keys[0]] = {}
-
         if len(keys) == 1:
-            if len(value) == 0:
-                del raw_data[keys[0]]
+            if not value:
+                if keys[0] in raw_data:
+                    del raw_data[keys[0]]
                 return
             if "elements_names" not in raw_data[keys[0]]:
-                raw_data[keys[0]]["elements_names"] = np.array([])
-                raw_data[keys[0]]["data"] = np.array([])
-                raw_data[keys[0]]["timestamps"] = np.array([])
-
-            raw_data[keys[0]]["elements_names"] = np.append(raw_data[keys[0]]["elements_names"], value)
+                raw_data[keys[0]]["elements_names"] = []
+                # Also create empty buffers (which will later be updated in run())
+                raw_data[keys[0]]["data"] = deque()
+                raw_data[keys[0]]["timestamps"] = deque()
+            raw_data[keys[0]]["elements_names"].append(value)
         else:
-            self.__populate_realtime_logger_metadata(raw_data[keys[0]], keys[1:], value)
+            self._populate_realtime_logger_metadata(raw_data[keys[0]], keys[1:], value)
 
-
-    def open(self, source) -> bool:
+    def open(self, source: str) -> bool:
+        """
+        Initializes the connection with the remote realtime logger.
+        This method retrieves metadata (e.g. joint names, robot name, etc.)
+        but does not yet read the realtime data.
+        """
         if not self.realtime_network_init:
+            # Initialize YARP network and parameters.
             import bipedal_locomotion_framework.bindings as blf
             import yarp
+
             yarp.Network.init()
 
             param_handler = blf.parameters_handler.YarpParametersHandler()
@@ -69,47 +126,89 @@ class RealtimeSignalProvider(SignalProvider):
             param_handler.set_parameter_string("local", "/visualizerInput")
             param_handler.set_parameter_string("carrier", "udp")
             self.vector_collections_client.initialize(param_handler)
-
             self.vector_collections_client.connect()
+
             try:
-                self.rt_metadata_dict = self.vector_collections_client.get_metadata().vectors
+                self.rt_metadata_dict = (
+                    self.vector_collections_client.get_metadata().vectors
+                )
             except ValueError:
-                print("Error in retreiving the metadata from the logger")
-                print("Check if the logger is running and configured for realtime connection")
+                print(
+                    "Error retrieving metadata from the logger. "
+                    "Ensure the logger is running and configured for realtime connection."
+                )
                 return False
 
             self.realtime_network_init = True
             self.joints_name = self.rt_metadata_dict["robot_realtime::description_list"]
-            self.robot_name = self.rt_metadata_dict["robot_realtime::yarp_robot_name"][0]
+            self.robot_name = self.rt_metadata_dict["robot_realtime::yarp_robot_name"][
+                0
+            ]
+
+            # Populate metadata into self.data recursively.
             for key_string, value in self.rt_metadata_dict.items():
                 keys = key_string.split("::")
-                self.__populate_realtime_logger_metadata(self.data, keys, value)
-            del self.data[self.root_name]["description_list"]
-            del self.data[self.root_name]["yarp_robot_name"]
+                self._populate_realtime_logger_metadata(self.data, keys, value)
 
-        vc_input = self.vector_collections_client.read_data(True).vectors
+            # Remove keys that are not needed for the realtime plotting.
+            if self.root_name in self.data:
+                self.data[self.root_name].pop("description_list", None)
+                self.data[self.root_name].pop("yarp_robot_name", None)
 
-        if not vc_input:
-            return False
-        else:
-            # Update the timestamps
-            recent_timestamp = vc_input["robot_realtime::timestamps"][0]
-            self.timestamps = np.append(self.timestamps, recent_timestamp).reshape(-1)
-            del vc_input["robot_realtime::timestamps"]
+        return True
 
-            # Keep the data within the fixed time interval
-            while recent_timestamp - self.timestamps[0] > self.realtime_fixed_plot_window:
-                self.initial_time = self.timestamps[0]
-                self.end_time = self.timestamps[-1]
-                self.timestamps = np.delete(self.timestamps, 0).reshape(-1)
-            self.initial_time = self.timestamps[0]
-            self.end_time = self.timestamps[-1]
+    def run(self):
+        """
+        This is the periodic thread that reads data from the remote realtime logger.
+        It:
+          - Reads new data.
+          - Updates the global timestamp buffer.
+          - For each key (except for the timestamps key), updates the data buffers.
+          - Emits an update signal to inform the visualizer that new data are available.
+        """
+        while True:
+            start = time.time()
+            if self.state == PeriodicThreadState.running:
+                # Read the latest data from the realtime logger.
+                vc_input = self.vector_collections_client.read_data(True).vectors
 
-            # Store the new data that comes in
-            for key_string, value in vc_input.items():
-                keys = key_string.split("::")
-                self.__populate_realtime_logger_data(self.data, keys, value, recent_timestamp)
+                if vc_input:
+                    self.index_lock.lock()
+                    # Retrieve the most recent timestamp from the input.
+                    recent_timestamp = vc_input["robot_realtime::timestamps"][0]
+                    self.timestamps.append(recent_timestamp)
+                    # Keep the global timestamps within the fixed plot window.
+                    while self.timestamps and (
+                        recent_timestamp - self.timestamps[0]
+                        > self.realtime_fixed_plot_window
+                    ):
+                        self.timestamps.popleft()
 
-            return True
+                    # Update initial and end times.
+                    if self.timestamps:
+                        self.initial_time = self.timestamps[0]
+                        self.end_time = self.timestamps[-1]
 
+                    # For each key in the received data (except timestamps),
+                    # update the appropriate buffer.
+                    for key_string, value in vc_input.items():
+                        if key_string == "robot_realtime::timestamps":
+                            continue
+                        keys = key_string.split("::")
+                        self._update_data_buffer(
+                            self.data, keys, value, recent_timestamp
+                        )
 
+                    self._index = len(self.timestamps) - 1
+                    self.index_lock.unlock()
+
+                # Signal that new data are available.
+                self.update_index_signal.emit()
+
+            # Sleep until the next period.
+            sleep_time = self.period - (time.time() - start)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+
+            if self.state == PeriodicThreadState.closed:
+                return

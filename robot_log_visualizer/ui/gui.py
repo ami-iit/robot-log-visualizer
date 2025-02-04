@@ -18,7 +18,12 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem,
 )
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
-from robot_log_visualizer.signal_provider.realtime_signal_provider import RealtimeSignalProvider
+from robot_log_visualizer.signal_provider.realtime_signal_provider import (
+    RealtimeSignalProvider, are_deps_installed
+)
+from robot_log_visualizer.signal_provider.matfile_signal_provider import (
+    MatfileSignalProvider,
+)
 
 from robot_log_visualizer.ui.plot_item import PlotItem
 from robot_log_visualizer.ui.video_item import VideoItem
@@ -52,6 +57,7 @@ import pyqtconsole.highlighter as hl
 
 import time
 
+
 class SetRobotModelDialog(QtWidgets.QDialog):
     def __init__(
         self, parent=None, model_path=None, package_dir=None, model_modificable=True
@@ -72,7 +78,6 @@ class SetRobotModelDialog(QtWidgets.QDialog):
 
         self.ui.robotModelToolButton.clicked.connect(self.open_urdf_file)
         self.ui.packageDirToolButton.clicked.connect(self.open_package_directory)
-
 
     def open_urdf_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -123,6 +128,7 @@ def get_icon(icon_name):
         QtGui.QIcon.Off,
     )
     return icon
+
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
     def __init__(self, signal_provider_period, meshcat_provider, animation_period):
@@ -197,17 +203,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
 
-        realtime_dependencies_installed = True
-        try:
-            import bipedal_locomotion_framework as blf
-            import yarp
-        except ImportError:
-            realtime_dependencies_installed = False
-
-        if realtime_dependencies_installed:
-            self.ui.actionRealtime_Connect.triggered.connect(self.connect_realtime_logger)
+        if are_deps_installed():
+            self.ui.actionRealtime_Connect.triggered.connect(
+                self.connect_realtime_logger
+            )
         else:
-            self.ui.actionRealtime_Connect.setText("Install BLF for RT Connect Functionality")
+            self.ui.actionRealtime_Connect.setEnabled(False)
+
         self.ui.actionAbout.triggered.connect(self.open_about)
         self.ui.actionSet_Robot_Model.triggered.connect(self.open_set_robot_model)
 
@@ -261,7 +263,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.pyconsole.edit.setStyleSheet("font-size: 12px;")
         self.ui.pythonWidgetLayout.addWidget(self.pyconsole)
         self.pyconsole.eval_in_thread()
-
 
         # self.media_player = QMediaPlayer(None, QMediaPlayer.VideoSurface)
         # self.media_player.setVideoOutput(self.ui.webcamView)
@@ -326,10 +327,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
+
     def toolButton_on_click(self):
-        self.plot_items.append(
-            PlotItem(period=self.animation_period)
-        )
+        self.plot_items.append(PlotItem(period=self.animation_period))
         self.plot_items[-1].set_signal_provider(self.signal_provider)
         self.ui.tabPlotWidget.addTab(self.plot_items[-1], "Plot")
 
@@ -443,10 +443,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             return
 
         self.plottingLock.acquire()
-        self.plotData[self.ui.tabPlotWidget.currentIndex()] = {"paths": paths, "legends": legends}
+        self.plotData[self.ui.tabPlotWidget.currentIndex()] = {
+            "paths": paths,
+            "legends": legends,
+        }
 
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
-            paths, legends, self.realtime_connection_enabled
+            paths, legends
         )
         self.plottingLock.release()
 
@@ -567,8 +570,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.state = PeriodicThreadState.closed
         self.meshcat_provider.wait()
 
-        self.signal_provider.state = PeriodicThreadState.closed
-        self.signal_provider.wait()
+        if self.signal_provider is not None:
+            self.signal_provider.state = PeriodicThreadState.closed
+            self.signal_provider.wait()
 
         event.accept()
         if self.realtime_connection_enabled:
@@ -619,10 +623,21 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         return parent
 
     def __load_mat_file(self, file_name):
-        self.signal_provider.open_mat_file(file_name)
+        self.signal_provider = MatfileSignalProvider(
+            self.signal_provider_period, "robot_logger_device"
+        )
+        self.signal_provider.open(file_name)
         self.signal_size = len(self.signal_provider)
+        self.signal_provider.start()
 
-        # load the model
+        self.signal_provider.register_update_index(self.update_index)
+
+
+        # add signal provider to the plot items
+        self.plot_items[-1].set_signal_provider(self.signal_provider)
+
+        # load the model and load the provider
+        self.meshcat_provider.set_signal_provider(self.signal_provider)
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name
         ):
@@ -634,6 +649,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 msg = msg + self.signal_provider.robot_name
 
             self.logger.write_to_log(msg)
+
+        self.meshcat_provider.start()
 
         # populate tree
         root = list(self.signal_provider.data.keys())[0]
@@ -687,6 +704,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 video_item.media_player.pause()
 
         self.meshcat_provider.state = PeriodicThreadState.running
+        self.ui.actionRealtime_Connect.setEnabled(False)
 
         self.dataset_loaded = True
 
@@ -702,6 +720,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         )
         if file_name:
             self.__load_mat_file(file_name)
+            return True
+        return False
 
     def maintain_connection(self, root):
         while self.realtime_connection_enabled:
@@ -724,18 +744,26 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             self.ui.timeSlider.setMaximum(self.signal_size)
 
-            if len(self.plotData) > 0 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex():
-                self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
-                self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
-                self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"],
-                self.realtime_connection_enabled)
+            if (
+                len(self.plotData) > 0
+                and len(self.plotData) > self.ui.tabPlotWidget.currentIndex()
+            ):
+                self.plot_items[
+                    self.ui.tabPlotWidget.currentIndex()
+                ].canvas.update_plots(
+                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
+                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"],
+                    self.realtime_connection_enabled,
+                )
             self.plottingLock.release()
 
             time.sleep(self.animation_period + self.sleepPeriodBuffer)
             self.meshcat_provider.update_mesh_realtime()
 
     def connect_realtime_logger(self):
-        self.signal_provider = RealtimeSignalProvider(self.signal_provider_period, "robot_realtime")
+        self.signal_provider = RealtimeSignalProvider(
+            self.signal_provider_period, "robot_realtime"
+        )
         self.signal_size = len(self.signal_provider)
         self.signal_provider.register_update_index(self.update_index)
         self.realtime_connection_enabled = True
@@ -776,9 +804,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.start()
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)
-        self.network_thread = threading.Thread(target=self.maintain_connection, args=(root,))
-        self.network_thread.start()
-
+        # self.network_thread = threading.Thread(target=self.maintain_connection, args=(root,))
+        # self.network_thread.start()
 
     def open_about(self):
         self.about.show()

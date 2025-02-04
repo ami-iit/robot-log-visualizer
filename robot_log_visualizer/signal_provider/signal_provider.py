@@ -10,7 +10,13 @@ from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 import idyntree.swig as idyn
 import abc
+from enum import Enum
 
+
+class ProviderType(Enum):
+    OFFLINE = 0
+    REALTIME = 1
+    NOT_DEFINED = 2
 
 
 class TextLoggingMsg:
@@ -34,7 +40,7 @@ class TextLoggingMsg:
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
-    def __init__(self, period: float, signal_root_name: str):
+    def __init__(self, period: float, signal_root_name: str, provider_type: ProviderType):
         QThread.__init__(self)
 
         # set device state
@@ -70,6 +76,8 @@ class SignalProvider(QThread):
         self._current_time = 0
 
         self.trajectory_span = 200
+
+        self.provider_type = provider_type
 
     @abc.abstractmethod
     def open(self, source: str) -> bool:
@@ -262,35 +270,6 @@ class SignalProvider(QThread):
         del self._3d_trajectories_path[key]
         self._3d_trajectories_path_lock.unlock()
 
+    @abc.abstractmethod
     def run(self):
-        while True:
-            start = time.time()
-            if self.state == PeriodicThreadState.running:
-                self.index_lock.lock()
-                tmp_index = self._index
-                self._current_time += self.period
-                self._current_time = min(
-                    self._current_time, self.timestamps[-1] - self.initial_time
-                )
-
-                # find the index associated to the current time in self.timestamps
-                # this is valid since self.timestamps is sorted and self._current_time is increasing
-                while (
-                    self._current_time > self.timestamps[tmp_index] - self.initial_time
-                ):
-                    tmp_index += 1
-                    if tmp_index > len(self.timestamps):
-                        break
-
-                self._index = tmp_index
-
-                self.index_lock.unlock()
-
-                self.update_index_signal.emit()
-
-            sleep_time = self.period - (time.time() - start)
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-
-            if self.state == PeriodicThreadState.closed:
-                return
+        return

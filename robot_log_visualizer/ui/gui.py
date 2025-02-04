@@ -19,7 +19,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from robot_log_visualizer.signal_provider.realtime_signal_provider import (
-    RealtimeSignalProvider, are_deps_installed
+    RealtimeSignalProvider,
+    are_deps_installed,
 )
 from robot_log_visualizer.signal_provider.matfile_signal_provider import (
     MatfileSignalProvider,
@@ -631,7 +632,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider.start()
 
         self.signal_provider.register_update_index(self.update_index)
-
 
         # add signal provider to the plot items
         self.plot_items[-1].set_signal_provider(self.signal_provider)

@@ -21,9 +21,7 @@ def main():
         "plot_animation": 0.03,
     }
 
-    meshcat_provider = MeshcatProvider(
-        period=thread_periods["meshcat_provider"]
-    )
+    meshcat_provider = MeshcatProvider(period=thread_periods["meshcat_provider"])
 
     # instantiate a QApplication
     app = QApplication(sys.argv)

@@ -14,9 +14,7 @@ class PlotItem(QFrame):
         self.ui = Ui_PlotTab()
         self.ui.setupUi(self)
 
-        self.canvas = MatplotlibViewerCanvas(
-            parent=self, period=period
-        )
+        self.canvas = MatplotlibViewerCanvas(parent=self, period=period)
         self.ui.plotLayout.addWidget(self.canvas)
 
     def set_signal_provider(self, signal_provider):

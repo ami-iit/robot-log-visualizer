@@ -11,6 +11,7 @@ from robot_log_visualizer.signal_provider.signal_provider import (
 )
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
+
 def are_deps_installed():
     try:
         import bipedal_locomotion_framework.bindings
@@ -18,6 +19,7 @@ def are_deps_installed():
     except ImportError:
         return False
     return True
+
 
 class RealtimeSignalProvider(SignalProvider):
     def __init__(self, period: float, signal_root_name: str):

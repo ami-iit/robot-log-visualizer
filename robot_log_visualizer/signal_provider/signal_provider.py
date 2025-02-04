@@ -40,7 +40,9 @@ class TextLoggingMsg:
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
-    def __init__(self, period: float, signal_root_name: str, provider_type: ProviderType):
+    def __init__(
+        self, period: float, signal_root_name: str, provider_type: ProviderType
+    ):
         QThread.__init__(self)
 
         # set device state

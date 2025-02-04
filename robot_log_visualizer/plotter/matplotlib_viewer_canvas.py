@@ -71,7 +71,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
             return
 
         if self.signal_provider.provider_type == ProviderType.REALTIME:
-
             self.online_plot_anim = animation.FuncAnimation(
                 self.fig,
                 self.update_online_plot,
@@ -80,7 +79,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 blit=True,
             )
         elif self.signal_provider.provider_type == ProviderType.OFFLINE:
-
             self.vertical_line_anim = animation.FuncAnimation(
                 self.fig,
                 self.update_vertical_line,
@@ -239,7 +237,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.start_animation()
 
     def update_plots(self, paths, legends):
-
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])

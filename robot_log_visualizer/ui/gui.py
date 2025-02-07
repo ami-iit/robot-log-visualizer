@@ -742,6 +742,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
+
+        # start the threads accordingly
         self.signal_provider.state = PeriodicThreadState.running
         self.signal_provider.start()
         self.meshcat_provider.set_signal_provider(self.signal_provider)

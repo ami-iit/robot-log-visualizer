@@ -74,7 +74,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.online_plot_anim = animation.FuncAnimation(
                 self.fig,
                 self.update_online_plot,
-                # init_func=self.init_online_plot,
                 interval=self.period_in_ms,
                 blit=True,
             )
@@ -320,17 +319,6 @@ class MatplotlibViewerCanvas(FigureCanvas):
         )
 
     # ------ Online Plot Animation (for REALTIME mode) ------
-
-    def init_online_plot(self):
-        """
-        Initialize the online plot animation.
-        In this mode the plotted data (in active_paths) is updated.
-        """
-        return (
-            *(self.active_paths.values()),
-            *(self.selected_points.values()),
-            *(self.annotations.values()),
-        )
 
     def update_online_plot(self, frame):
         """

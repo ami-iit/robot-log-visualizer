@@ -261,6 +261,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
                         label=legend_string,
                         picker=True,
                         color=next(self.color_palette),
+                        animated=True,
                     )
                 else:
                     (self.active_paths[path_string],) = self.axes.plot(
@@ -270,6 +271,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
                         picker=True,
                         color=next(self.color_palette),
                         marker="o",
+                        animated=True,
                     )
 
         paths_to_be_canceled = []

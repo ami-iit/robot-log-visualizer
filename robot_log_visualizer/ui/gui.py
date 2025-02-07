@@ -138,7 +138,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # for realtime logging
         self.realtimePlotUpdaterThreadActive = False
         self.plotData = {}
-        self.plottingLock = threading.Lock()
         self.realtime_connection_enabled = False
         self.timeoutAttempts = 20
         self.sleepPeriodBuffer = 0.02
@@ -431,7 +430,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if not paths:
             return
 
-        self.plottingLock.acquire()
         self.plotData[self.ui.tabPlotWidget.currentIndex()] = {
             "paths": paths,
             "legends": legends,
@@ -440,7 +438,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
         )
-        self.plottingLock.release()
 
     def find_text_log_index(self, path):
         current_time = self.signal_provider.current_time

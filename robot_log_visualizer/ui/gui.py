@@ -397,20 +397,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
-        self.plottingLock.acquire()
-        self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
-
-        # Update the indexes of plotData before deletion
-        for i in range(index, len(self.plotData.keys()) - 1):
-            self.plotData[i] = self.plotData[i + 1]
-        # Remove the last key
-        del self.plotData[list(self.plotData.keys())[-1]]
         del self.plot_items[index]
-
         if self.ui.tabPlotWidget.count() == 1:
             self.ui.tabPlotWidget.setTabsClosable(False)
-        self.plottingLock.release()
+        self.ui.tabPlotWidget.removeTab(index)
 
     def plotTabBar_on_doubleClick(self, index):
         dlg, plot_title = build_plot_title_box_dialog()

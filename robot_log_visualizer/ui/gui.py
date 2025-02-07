@@ -706,41 +706,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             return True
         return False
 
-    def maintain_connection(self, root):
-        while self.realtime_connection_enabled:
-            if not self.signal_provider.open("/rtLoggingVectorCollections"):
-                self.realtime_connection_enabled = False
-                break
-
-            # populate text logging tree
-            self.plottingLock.acquire()
-            if self.signal_provider.text_logging_data:
-                root = list(self.signal_provider.text_logging_data.keys())[0]
-                root_item = QTreeWidgetItem([root])
-                root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
-                items = self.__populate_text_logging_tree_widget(
-                    self.signal_provider.text_logging_data[root], root_item
-                )
-                self.ui.yarpTextLogTreeWidget.insertTopLevelItems(0, [items])
-            # spawn the console
-            self.pyconsole.push_local_ns("data", self.signal_provider.data)
-
-            if (
-                len(self.plotData) > 0
-                and len(self.plotData) > self.ui.tabPlotWidget.currentIndex()
-            ):
-                self.plot_items[
-                    self.ui.tabPlotWidget.currentIndex()
-                ].canvas.update_plots(
-                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["paths"],
-                    self.plotData[self.ui.tabPlotWidget.currentIndex()]["legends"],
-                    self.realtime_connection_enabled,
-                )
-            self.plottingLock.release()
-
-            time.sleep(self.animation_period + self.sleepPeriodBuffer)
-            self.meshcat_provider.update_mesh_realtime()
-
     def connect_realtime_logger(self):
         self.signal_provider = RealtimeSignalProvider(
             self.signal_provider_period, "robot_realtime"

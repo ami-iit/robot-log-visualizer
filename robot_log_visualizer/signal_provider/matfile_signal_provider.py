@@ -18,6 +18,9 @@ class MatfileSignalProvider(SignalProvider):
     def __init__(self, period: float, signal_root_name: str):
         super().__init__(period, signal_root_name, ProviderType.OFFLINE)
 
+    def __len__(self):
+        return len(self.timestamps)
+
     def __populate_text_logging_data(self, file_object):
         data = {}
         for key, value in file_object.items():

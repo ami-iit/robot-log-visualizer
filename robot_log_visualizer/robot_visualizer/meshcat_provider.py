@@ -177,6 +177,9 @@ class MeshcatProvider(QThread):
 
             index = self._signal_provider.index
             if self.state == PeriodicThreadState.running and self._is_model_loaded:
+                if len(self._signal_provider) == 0:
+                    time.sleep(self._period)
+                    continue
                 robot_state = self._signal_provider.get_robot_state_at_index(index)
                 self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians

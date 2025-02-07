@@ -64,7 +64,7 @@ class SignalProvider(QThread):
         self.period = period
 
         self.data = {}
-        self.timestamps = np.array([])
+        # self.timestamps = np.array([])
         self.text_logging_data = {}
 
         self.initial_time = math.inf
@@ -85,8 +85,9 @@ class SignalProvider(QThread):
     def open(self, source: str) -> bool:
         return False
 
+    @abc.abstractmethod
     def __len__(self):
-        return self.timestamps.shape[0]
+        pass
 
     @property
     def state(self):

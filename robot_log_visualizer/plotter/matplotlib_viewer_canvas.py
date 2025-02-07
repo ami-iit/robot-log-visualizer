@@ -74,7 +74,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.online_plot_anim = animation.FuncAnimation(
                 self.fig,
                 self.update_online_plot,
-                init_func=self.init_online_plot,
+                # init_func=self.init_online_plot,
                 interval=self.period_in_ms,
                 blit=True,
             )
@@ -237,6 +237,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.start_animation()
 
     def update_plots(self, paths, legends):
+        self.quit_animation()
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
@@ -282,13 +283,14 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        self.axes.set_xlim(
-            0, self.signal_provider.end_time - self.signal_provider.initial_time
-        )
+        self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
+        # if self.signal_provider.end_time != self.signal_provider.initial_time:
+        #     self.axes.set_xlim(
+        #         0, self.signal_provider.end_time - self.signal_provider.initial_time
+        #     )
 
         # Since a new plot has been added/removed we delete the old animation and we create a new one
         # TODO: this part could be optimized
-        self.quit_animation()
         self.axes.legend()
 
         if not self.frame_legend:
@@ -351,7 +353,7 @@ class MatplotlibViewerCanvas(FigureCanvas):
             timestamps = data["timestamps"] - self.signal_provider.initial_time
             line.set_data(timestamps, datapoints)
         # For a realtime plot, update the x-axis limits as needed.
-        self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
+        # self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
         return (
             *(self.active_paths.values()),
             *(self.selected_points.values()),

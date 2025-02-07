@@ -20,6 +20,46 @@ def are_deps_installed():
         return False
     return True
 
+class DequeToNumpyLeaf(dict):
+    """
+    A dictionary-like object that internally stores "data" and "timestamps"
+    as deques for efficient appends/popleft, but returns them as NumPy arrays
+    when accessed via dict["data"] or dict["timestamps"].
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def append(self, key, value):
+        super().__getitem__(key).append(value)
+
+    def get_raw(self, key):
+        return super().__getitem__(key)
+
+    def __getitem__(self, key):
+        """
+        Intercept requests for 'data' or 'timestamps'.
+        Return them as NumPy arrays constructed from the internal deques.
+        For any other key, return as a normal dictionary would.
+        """
+        if key == "data":
+            return np.array(super().__getitem__("data"))
+        elif key == "timestamps":
+            return np.array(super().__getitem__("timestamps"))
+        else:
+            return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        """
+        If you (or code) try to do leaf["data"] = something, you might
+        want to do a custom setter. For simplicity, we just set it normally
+        for non-'data_deque'/'timestamps_deque' keys.
+        """
+        # Example logic if you want to intercept "data":
+        # if key == "data":
+        #     # Convert to deque
+        #     self["data_deque"] = deque(value)
+        # else:
+        super().__setitem__(key, value)
 
 class RealtimeSignalProvider(SignalProvider):
     def __init__(self, period: float, signal_root_name: str):
@@ -51,8 +91,11 @@ class RealtimeSignalProvider(SignalProvider):
         # Global data buffers:
         # - self.data holds the hierarchical data coming from the logger.
         # - self.timestamps holds the timestamps (as a deque) for the global buffer.
-        self.data = {}
-        self.timestamps = deque()
+        self.data = DequeToNumpyLeaf()
+        self._timestamps = deque()
+
+    def __len__(self):
+        return len(self._timestamps)
 
     def _update_data_buffer(
         self, raw_data: dict, keys: list, value, recent_timestamp: float
@@ -65,22 +108,22 @@ class RealtimeSignalProvider(SignalProvider):
         Any sample older than the fixed time window is removed.
         """
         if keys[0] not in raw_data:
-            raw_data[keys[0]] = {}
+            raw_data[keys[0]] = DequeToNumpyLeaf()
 
         if len(keys) == 1:
             # Leaf node: initialize deques if needed.
             if "data" not in raw_data[keys[0]]:
                 raw_data[keys[0]]["data"] = deque()
                 raw_data[keys[0]]["timestamps"] = deque()
-            raw_data[keys[0]]["data"].append(value)
-            raw_data[keys[0]]["timestamps"].append(recent_timestamp)
+            raw_data[keys[0]].append("data" ,value)
+            raw_data[keys[0]].append("timestamps", recent_timestamp)
             # Remove old data outside the time window.
-            while raw_data[keys[0]]["timestamps"] and (
-                recent_timestamp - raw_data[keys[0]]["timestamps"][0]
+            while raw_data[keys[0]].get_raw("timestamps") and (
+                recent_timestamp - raw_data[keys[0]].get_raw("timestamps")[0]
                 > self.realtime_fixed_plot_window
             ):
-                raw_data[keys[0]]["data"].popleft()
-                raw_data[keys[0]]["timestamps"].popleft()
+                raw_data[keys[0]].get_raw("data").popleft()
+                raw_data[keys[0]].get_raw("timestamps").popleft()
         else:
             # Recursive call for nested dictionaries.
             self._update_data_buffer(
@@ -95,7 +138,7 @@ class RealtimeSignalProvider(SignalProvider):
         if keys[0] == "timestamps":
             return
         if keys[0] not in raw_data:
-            raw_data[keys[0]] = {}
+            raw_data[keys[0]] = DequeToNumpyLeaf()
         if len(keys) == 1:
             if not value:
                 if keys[0] in raw_data:
@@ -106,7 +149,8 @@ class RealtimeSignalProvider(SignalProvider):
                 # Also create empty buffers (which will later be updated in run())
                 raw_data[keys[0]]["data"] = deque()
                 raw_data[keys[0]]["timestamps"] = deque()
-            raw_data[keys[0]]["elements_names"].append(value)
+
+            raw_data[keys[0]]["elements_names"] = value
         else:
             self._populate_realtime_logger_metadata(raw_data[keys[0]], keys[1:], value)
 
@@ -159,6 +203,10 @@ class RealtimeSignalProvider(SignalProvider):
 
         return True
 
+    @property
+    def timestamps(self):
+        return np.array(self._timestamps)
+
     def run(self):
         """
         This is the periodic thread that reads data from the remote realtime logger.
@@ -178,18 +226,18 @@ class RealtimeSignalProvider(SignalProvider):
                     self.index_lock.lock()
                     # Retrieve the most recent timestamp from the input.
                     recent_timestamp = vc_input["robot_realtime::timestamps"][0]
-                    self.timestamps.append(recent_timestamp)
+                    self._timestamps.append(recent_timestamp)
                     # Keep the global timestamps within the fixed plot window.
-                    while self.timestamps and (
-                        recent_timestamp - self.timestamps[0]
+                    while self._timestamps and (
+                        recent_timestamp - self._timestamps[0]
                         > self.realtime_fixed_plot_window
                     ):
-                        self.timestamps.popleft()
+                        self._timestamps.popleft()
 
                     # Update initial and end times.
-                    if self.timestamps:
-                        self.initial_time = self.timestamps[0]
-                        self.end_time = self.timestamps[-1]
+                    if self._timestamps:
+                        self.initial_time = self._timestamps[0]
+                        self.end_time = self._timestamps[-1]
 
                     # For each key in the received data (except timestamps),
                     # update the appropriate buffer.
@@ -201,7 +249,7 @@ class RealtimeSignalProvider(SignalProvider):
                             self.data, keys, value, recent_timestamp
                         )
 
-                    self._index = len(self.timestamps) - 1
+                    self._index = len(self._timestamps) - 1
                     self.index_lock.unlock()
 
                 # Signal that new data are available.
@@ -212,5 +260,3 @@ class RealtimeSignalProvider(SignalProvider):
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
-            if self.state == PeriodicThreadState.closed:
-                return

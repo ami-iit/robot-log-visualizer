@@ -742,8 +742,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             # spawn the console
             self.pyconsole.push_local_ns("data", self.signal_provider.data)
 
-            self.ui.timeSlider.setMaximum(self.signal_size)
-
             if (
                 len(self.plotData) > 0
                 and len(self.plotData) > self.ui.tabPlotWidget.currentIndex()
@@ -764,7 +762,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider = RealtimeSignalProvider(
             self.signal_provider_period, "robot_realtime"
         )
-        self.signal_size = len(self.signal_provider)
         self.signal_provider.register_update_index(self.update_index)
         self.realtime_connection_enabled = True
 
@@ -799,8 +796,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # Disable these buttons for RT communication
         self.ui.startButton.setEnabled(False)
         self.ui.timeSlider.setEnabled(False)
+        self.signal_provider.state = PeriodicThreadState.running
         self.signal_provider.start()
         self.meshcat_provider.set_signal_provider(self.signal_provider)
+        self.meshcat_provider.state = PeriodicThreadState.running
         self.meshcat_provider.start()
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)

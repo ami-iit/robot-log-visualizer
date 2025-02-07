@@ -127,7 +127,9 @@ class SignalProvider(QThread):
             if "data" in value.keys():
                 data[key] = {}
                 data[key]["data"] = np.atleast_1d(np.squeeze(np.array(value["data"])))
-                data[key]["timestamps"] = np.atleast_1d(np.squeeze(np.array(value["timestamps"])))
+                data[key]["timestamps"] = np.atleast_1d(
+                    np.squeeze(np.array(value["timestamps"]))
+                )
 
                 # if the initial or end time has been updated we can also update the entire timestamps dataset
                 if data[key]["timestamps"][0] < self.initial_time:

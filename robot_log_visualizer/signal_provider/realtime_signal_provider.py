@@ -260,3 +260,6 @@ class RealtimeSignalProvider(SignalProvider):
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
+            if self.state == PeriodicThreadState.closed:
+                return
+

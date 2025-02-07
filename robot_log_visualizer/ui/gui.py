@@ -578,7 +578,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         event.accept()
         if self.realtime_connection_enabled:
             self.realtime_connection_enabled = False
-            self.network_thread.join()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):

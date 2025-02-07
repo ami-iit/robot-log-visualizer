@@ -285,14 +285,12 @@ class MatplotlibViewerCanvas(FigureCanvas):
             self.active_paths[path].remove()
             self.active_paths.pop(path)
 
-        self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
-        # if self.signal_provider.end_time != self.signal_provider.initial_time:
-        #     self.axes.set_xlim(
-        #         0, self.signal_provider.end_time - self.signal_provider.initial_time
-        #     )
+        try:
+            self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
+        except AttributeError:
+            self.axes.set_xlim(
+                0, self.signal_provider.end_time - self.signal_provider.initial_time)
 
-        # Since a new plot has been added/removed we delete the old animation and we create a new one
-        # TODO: this part could be optimized
         self.axes.legend()
 
         if not self.frame_legend:

@@ -710,7 +710,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.signal_provider = RealtimeSignalProvider(
             self.signal_provider_period, "robot_realtime"
         )
-        self.signal_provider.register_update_index(self.update_index)
         self.realtime_connection_enabled = True
 
         # Do initial connection to populate the necessary data

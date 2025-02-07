@@ -5,13 +5,12 @@
 import time
 import h5py
 import numpy as np
-from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.signal_provider.signal_provider import (
     SignalProvider,
     ProviderType,
     TextLoggingMsg,
 )
-from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
+from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 
 class MatfileSignalProvider(SignalProvider):

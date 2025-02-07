@@ -6,7 +6,7 @@
 import threading
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QUrl
-from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker, QThread
+from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
 from PyQt5.QtWidgets import (
     QFileDialog,
     QTreeWidgetItem,
@@ -15,9 +15,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QLineEdit,
     QDialogButtonBox,
-    QTableWidgetItem,
 )
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from robot_log_visualizer.signal_provider.realtime_signal_provider import (
     RealtimeSignalProvider,
     are_deps_installed,
@@ -34,7 +32,6 @@ from robot_log_visualizer.utils.utils import (
     PeriodicThreadState,
     RobotStatePath,
     ColorPalette,
-    Color,
 )
 
 import sys

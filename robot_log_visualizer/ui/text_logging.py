@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QTableWidgetItem,
 )
 
-from PyQt5.QtGui import QPainter, QColor, QFont, QBrush
+from PyQt5.QtGui import QColor, QBrush
 
 
 class TextLoggingItem:

@@ -2,9 +2,7 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-import time
 import math
-import h5py
 import numpy as np
 from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath

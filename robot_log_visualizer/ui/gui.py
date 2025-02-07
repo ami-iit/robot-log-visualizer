@@ -140,7 +140,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.plotData = {}
         self.realtime_connection_enabled = False
         self.timeoutAttempts = 20
-        self.sleepPeriodBuffer = 0.02
 
         self.animation_period = animation_period
 
@@ -755,7 +754,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.realtime_connection_enabled = False
             self.signal_provider = None
             return
-        self.meshcat_provider._realtimeMeshUpdate = True
         # only display one root in the gui
         root = list(self.signal_provider.data.keys())[0]
         root_item = QTreeWidgetItem([root])
@@ -787,8 +785,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.start()
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)
-        # self.network_thread = threading.Thread(target=self.maintain_connection, args=(root,))
-        # self.network_thread.start()
 
     def open_about(self):
         self.about.show()

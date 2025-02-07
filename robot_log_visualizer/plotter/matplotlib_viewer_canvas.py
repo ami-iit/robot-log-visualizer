@@ -354,8 +354,10 @@ class MatplotlibViewerCanvas(FigureCanvas):
                 datapoints = data["data"][:]
             timestamps = data["timestamps"] - self.signal_provider.initial_time
             line.set_data(timestamps, datapoints)
-        # For a realtime plot, update the x-axis limits as needed.
-        # self.axes.set_xlim(0, self.signal_provider.realtime_fixed_plot_window)
+
+        self.axes.relim()
+        self.axes.autoscale_view()
+
         return (
             *(self.active_paths.values()),
             *(self.selected_points.values()),

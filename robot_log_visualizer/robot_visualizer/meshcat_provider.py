@@ -177,7 +177,7 @@ class MeshcatProvider(QThread):
             frame_T_base = frame_T_base.inverse().asHomogeneousTransform()
             self.frame_T_base = frame_T_base.toNumPy()
 
-            link_frame = model.getFrameName(model.getFrameLink(base_frame_index))
+            link_frame = model.getLinkName(model.getFrameLink(base_frame_index))
             self.base_frame = base_frame
 
         self._meshcat_visualizer.load_model(

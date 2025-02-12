@@ -173,8 +173,12 @@ class MeshcatProvider(QThread):
             link_frame = None
         else:
             base_frame_index = model.getFrameIndex(base_frame)
-            if base_frame_index == -1: #idyn.FRAME_INVALID_INDEX
-                raise ValueError("MeshcatProvider: Unable to find the base frame " + base_frame + " in the model.")
+            if base_frame_index == -1:  # idyn.FRAME_INVALID_INDEX
+                raise ValueError(
+                    "MeshcatProvider: Unable to find the base frame "
+                    + base_frame
+                    + " in the model."
+                )
 
             frame_T_base = model.getFrameTransform(base_frame_index)
             frame_T_base = frame_T_base.inverse().asHomogeneousTransform()

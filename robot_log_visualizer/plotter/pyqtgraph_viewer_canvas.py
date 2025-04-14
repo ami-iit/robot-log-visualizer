@@ -1,0 +1,115 @@
+import pyqtgraph as pg
+from PyQt5 import QtWidgets, QtCore
+import pyqtgraph as pg
+import numpy as np
+
+class PyQtGraphViewerCanvas(QtWidgets.QWidget):
+    def __init__(self, parent, signal_provider, period):
+        super().__init__(parent)
+
+        self.signal_provider = signal_provider
+        self.period_in_ms = int(period * 1000)
+        self.active_paths = {}
+        self.annotations = []
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.plot_widget = pg.PlotWidget()
+        self.layout.addWidget(self.plot_widget)
+        self.plot_widget.setBackground('w')
+
+        # Font styles
+        label_style = {'color': '#000', 'font-size': '14px', 'font-weight': 'bold'}
+        self.plot_widget.setLabel('bottom', 'Time [s]', **label_style)
+        self.plot_widget.setLabel('left', 'Value', **label_style)
+        self.plot_widget.showGrid(x=True, y=True)
+        # Legend
+        self.plot_widget.addLegend(offset=(10, 10), labelTextSize='12pt', brush=(255,255,255,150))
+
+        # Vertical line for animation
+        self.vertical_line = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('k'))
+        self.plot_widget.addItem(self.vertical_line)
+
+        # Timer for updating the vertical line
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_vertical_line)
+        self.timer.start(self.period_in_ms)
+
+        # Color palette
+        self.color_palette = pg.intColor
+
+        # Interaction
+        self.plot_widget.scene().sigMouseClicked.connect(self.on_click)
+
+    def update_plots(self, paths, legends):
+        for path, legend in zip(paths, legends):
+            path_string = "/".join(path)
+            legend_string = "/".join(legend[1:])
+
+            if path_string not in self.active_paths:
+                data = self.signal_provider.data
+                for key in path[:-1]:
+                    data = data[key]
+                try:
+                    datapoints = data["data"][:, int(path[-1])]
+                except IndexError:
+                    datapoints = data["data"][:]
+
+                timestamps = data["timestamps"] - self.signal_provider.initial_time
+                color = self.color_palette(len(self.active_paths))
+                curve = self.plot_widget.plot(
+                    timestamps, datapoints,
+                    pen=pg.mkPen(color=color, width=2.5),  # thicker lines
+                    name=legend_string
+                )
+                self.active_paths[path_string] = curve
+
+        paths_to_remove = [p for p in self.active_paths if p.split('/') not in paths]
+        for path in paths_to_remove:
+            self.plot_widget.removeItem(self.active_paths[path])
+            del self.active_paths[path]
+
+        self.plot_widget.setXRange(0, self.signal_provider.end_time - self.signal_provider.initial_time)
+
+    def update_vertical_line(self):
+        current_time = self.signal_provider.current_time
+        self.vertical_line.setValue(current_time)
+
+    def on_click(self, event):
+        pos = event.scenePos()
+        if self.plot_widget.sceneBoundingRect().contains(pos):
+            mouse_point = self.plot_widget.plotItem.vb.mapSceneToView(pos)
+            x_click = mouse_point.x()
+            y_click = mouse_point.y()
+
+            closest_curve, closest_point, min_dist = None, None, float('inf')
+
+            for curve in self.active_paths.values():
+                xdata, ydata = curve.getData()
+                distances = np.sqrt((xdata - x_click)**2 + (ydata - y_click)**2)
+                index = np.argmin(distances)
+                distance = distances[index]
+                if distance < min_dist:
+                    min_dist = distance
+                    closest_curve = curve
+                    closest_point = (xdata[index], ydata[index])
+
+            if min_dist < 0.01 * (self.plot_widget.viewRange()[0][1] - self.plot_widget.viewRange()[0][0]):
+                text = f"{closest_point[0]:.3f}, {closest_point[1]:.3f}"
+                annotation = pg.TextItem(text, anchor=(0,1))
+                annotation.setPos(*closest_point)
+                self.plot_widget.addItem(annotation)
+                self.annotations.append(annotation)
+
+    def clear_annotations(self):
+        for annotation in self.annotations:
+            self.plot_widget.removeItem(annotation)
+        self.annotations.clear()
+
+    def quit_animation(self):
+        self.timer.stop()
+
+    def pause_animation(self):
+        self.timer.stop()
+
+    def resume_animation(self):
+        self.timer.start(self.period_in_ms)

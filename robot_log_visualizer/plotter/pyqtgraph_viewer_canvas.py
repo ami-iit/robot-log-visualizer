@@ -2,6 +2,7 @@ import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 import numpy as np
+from robot_log_visualizer.plotter.color_palette import ColorPalette
 
 class PyQtGraphViewerCanvas(QtWidgets.QWidget):
     def __init__(self, parent, signal_provider, period):
@@ -35,7 +36,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         self.timer.start(self.period_in_ms)
 
         # Color palette
-        self.color_palette = pg.intColor
+        self.color_palette = ColorPalette()
 
         # Interaction
         self.plot_widget.scene().sigMouseClicked.connect(self.on_click)

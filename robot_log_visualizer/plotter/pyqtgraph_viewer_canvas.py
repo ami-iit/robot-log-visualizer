@@ -6,17 +6,25 @@ from robot_log_visualizer.plotter.color_palette import ColorPalette
 
 class PyQtGraphViewerCanvas(QtWidgets.QWidget):
     def __init__(self, parent, signal_provider, period):
+        """
+        Initialize the PyQtGraphViewerCanvas.
+        Parameters:
+            parent (QWidget): The parent widget.
+            signal_provider (SignalProvider): The signal provider for data.
+            period (float): The update period in seconds.
+        """
         super().__init__(parent)
 
         self.signal_provider = signal_provider
         self.period_in_ms = int(period * 1000)
-        self.active_paths = {}
-        self.annotations = []
+
+        self.active_paths = {} # Plotted curves
+        self.annotations = [] # Text annotations
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.plot_widget = pg.PlotWidget()
-        self.layout.addWidget(self.plot_widget)
         self.plot_widget.setBackground('w')
+        self.layout.addWidget(self.plot_widget)
 
         # Font styles
         label_style = {'color': '#000', 'font-size': '14px', 'font-weight': 'bold'}
@@ -42,6 +50,13 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         self.plot_widget.scene().sigMouseClicked.connect(self.on_click)
 
     def update_plots(self, paths, legends):
+        """
+        Update plots based on provided data paths and their corresponding legends.
+
+        Parameters:
+            paths (list): List of paths representing data series to plot.
+            legends (list): Corresponding legend labels for the paths.
+        """
         for path, legend in zip(paths, legends):
             path_string = "/".join(path)
             legend_string = "/".join(legend[1:])
@@ -64,26 +79,37 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 )
                 self.active_paths[path_string] = curve
 
+        # Remove plots that are no longer active
         paths_to_remove = [p for p in self.active_paths if p.split('/') not in paths]
         for path in paths_to_remove:
             self.plot_widget.removeItem(self.active_paths[path])
             del self.active_paths[path]
 
+        # Set the x-axis range to the full time range of the data
         self.plot_widget.setXRange(0, self.signal_provider.end_time - self.signal_provider.initial_time)
 
     def update_vertical_line(self):
+        """
+        Update the position of the vertical line based on the current time.
+        """
         current_time = self.signal_provider.current_time
         self.vertical_line.setValue(current_time)
 
     def on_click(self, event):
+        """
+        Handle mouse click events to add annotations to the plot.
+        Clicking on a data point will display its coordinates.
+        """
         pos = event.scenePos()
         if self.plot_widget.sceneBoundingRect().contains(pos):
+            # Convert scene coordinates to plot coordinates
             mouse_point = self.plot_widget.plotItem.vb.mapSceneToView(pos)
             x_click = mouse_point.x()
             y_click = mouse_point.y()
 
             closest_curve, closest_point, min_dist = None, None, float('inf')
 
+            # Find the closest curve to the clicked point
             for curve in self.active_paths.values():
                 xdata, ydata = curve.getData()
                 distances = np.sqrt((xdata - x_click)**2 + (ydata - y_click)**2)
@@ -94,6 +120,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                     closest_curve = curve
                     closest_point = (xdata[index], ydata[index])
 
+            # If the closest point is within a certain distance, add an annotation
             if min_dist < 0.01 * (self.plot_widget.viewRange()[0][1] - self.plot_widget.viewRange()[0][0]):
                 text = f"{closest_point[0]:.3f}, {closest_point[1]:.3f}"
                 annotation = pg.TextItem(text, anchor=(0,1))
@@ -102,15 +129,27 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 self.annotations.append(annotation)
 
     def clear_annotations(self):
+        """
+        Clear all annotations from the plot.
+        """
         for annotation in self.annotations:
             self.plot_widget.removeItem(annotation)
         self.annotations.clear()
 
     def quit_animation(self):
+        """
+        Stop the animation and clear all plots.
+        """
         self.timer.stop()
 
     def pause_animation(self):
+        """
+        Pause the animation by stopping the timer.
+        """
         self.timer.stop()
 
     def resume_animation(self):
+        """
+        Resume the animation by restarting the timer.
+        """
         self.timer.start(self.period_in_ms)

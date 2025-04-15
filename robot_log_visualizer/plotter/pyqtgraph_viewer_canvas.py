@@ -1,4 +1,3 @@
-import pyqtgraph as pg
 from PyQt5 import QtWidgets, QtCore
 import pyqtgraph as pg
 import numpy as np
@@ -18,24 +17,31 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         self.signal_provider = signal_provider
         self.period_in_ms = int(period * 1000)
 
-        self.active_paths = {} # Plotted curves
-        self.annotations = [] # Text annotations
+        self.active_paths = {}  # Plotted curves
+        self.annotations = []  # Text annotations
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground('w')
+        self.plot_widget.setBackground("w")
         self.layout.addWidget(self.plot_widget)
 
-        # Font styles
-        label_style = {'color': '#000', 'font-size': '14px', 'font-weight': 'bold'}
-        self.plot_widget.setLabel('bottom', 'Time [s]', **label_style)
-        self.plot_widget.setLabel('left', 'Value', **label_style)
-        self.plot_widget.showGrid(x=True, y=True)
-        # Legend
-        self.plot_widget.addLegend(offset=(10, 10), labelTextSize='12pt', brush=(255,255,255,150))
+        # Set minimalistic axis labels
+        label_style = {"color": "#000000", "font-size": "12pt", "font-weight": "normal"}
+        self.plot_widget.setLabel("bottom", "Time [s]", **label_style)
+        self.plot_widget.setLabel("left", "Value", **label_style)
 
-        # Vertical line for animation
-        self.vertical_line = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('k'))
+        self.plot_widget.showGrid(x=True, y=True)
+
+        self.plot_widget.addLegend(
+            offset=(10, 10), labelTextSize="12pt", brush=(255, 255, 255, 150)
+        )
+        self.plot_widget.plotItem.legend.setParentItem(self.plot_widget.plotItem)
+        self.plot_widget.plotItem.legend.anchor((0.0, 0), (0.0, 0))
+
+        # Vertical line for animation (soft gray)
+        self.vertical_line = pg.InfiniteLine(
+            angle=90, movable=False, pen=pg.mkPen(color="#555555", width=1)
+        )
         self.plot_widget.addItem(self.vertical_line)
 
         # Timer for updating the vertical line
@@ -73,20 +79,23 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 timestamps = data["timestamps"] - self.signal_provider.initial_time
                 color = self.color_palette(len(self.active_paths))
                 curve = self.plot_widget.plot(
-                    timestamps, datapoints,
-                    pen=pg.mkPen(color=color, width=2.5),  # thicker lines
-                    name=legend_string
+                    timestamps,
+                    datapoints,
+                    pen=pg.mkPen(color=color, width=2),
+                    name=legend_string,
+                    symbol=None,
                 )
                 self.active_paths[path_string] = curve
-
-        # Remove plots that are no longer active
-        paths_to_remove = [p for p in self.active_paths if p.split('/') not in paths]
+        active_path_strings = {"/".join(path) for path in paths}
+        paths_to_remove = [p for p in self.active_paths if p not in active_path_strings]
         for path in paths_to_remove:
             self.plot_widget.removeItem(self.active_paths[path])
             del self.active_paths[path]
 
         # Set the x-axis range to the full time range of the data
-        self.plot_widget.setXRange(0, self.signal_provider.end_time - self.signal_provider.initial_time)
+        self.plot_widget.setXRange(
+            0, self.signal_provider.end_time - self.signal_provider.initial_time
+        )
 
     def update_vertical_line(self):
         """
@@ -104,15 +113,13 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         if self.plot_widget.sceneBoundingRect().contains(pos):
             # Convert scene coordinates to plot coordinates
             mouse_point = self.plot_widget.plotItem.vb.mapSceneToView(pos)
-            x_click = mouse_point.x()
-            y_click = mouse_point.y()
+            x_click, y_click = mouse_point.x(), mouse_point.y()
 
-            closest_curve, closest_point, min_dist = None, None, float('inf')
+            closest_curve, closest_point, min_dist = None, None, float("inf")
 
-            # Find the closest curve to the clicked point
             for curve in self.active_paths.values():
                 xdata, ydata = curve.getData()
-                distances = np.sqrt((xdata - x_click)**2 + (ydata - y_click)**2)
+                distances = np.sqrt((xdata - x_click) ** 2 + (ydata - y_click) ** 2)
                 index = np.argmin(distances)
                 distance = distances[index]
                 if distance < min_dist:
@@ -121,9 +128,15 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                     closest_point = (xdata[index], ydata[index])
 
             # If the closest point is within a certain distance, add an annotation
-            if min_dist < 0.01 * (self.plot_widget.viewRange()[0][1] - self.plot_widget.viewRange()[0][0]):
+            if min_dist < 0.01 * (
+                self.plot_widget.viewRange()[0][1] - self.plot_widget.viewRange()[0][0]
+            ):
                 text = f"{closest_point[0]:.3f}, {closest_point[1]:.3f}"
-                annotation = pg.TextItem(text, anchor=(0,1))
+                annotation = pg.TextItem(
+                    text,
+                    anchor=(0, 1),
+                    color="#000000"
+                )
                 annotation.setPos(*closest_point)
                 self.plot_widget.addItem(annotation)
                 self.annotations.append(annotation)

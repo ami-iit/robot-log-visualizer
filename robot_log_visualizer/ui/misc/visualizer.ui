@@ -248,7 +248,7 @@
             </attribute>
             <layout class="QHBoxLayout" name="horizontalLayout">
              <item>
-              <widget class="QWebEngineView" name="meshcatView" native="true">
+              <widget class="QWebEngineView" name="meshcatView">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                  <horstretch>1</horstretch>
@@ -553,7 +553,7 @@
   </action>
   <action name="actionSet_Robot_Model">
    <property name="text">
-    <string>Set Robot Model</string>
+    <string>Options</string>
    </property>
   </action>
  </widget>
@@ -561,7 +561,7 @@
   <customwidget>
    <class>QWebEngineView</class>
    <extends>QWidget</extends>
-   <header>PyQt5.QtWebEngineWidgets</header>
+   <header location="global">QtWebEngineWidgets/QWebEngineView</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

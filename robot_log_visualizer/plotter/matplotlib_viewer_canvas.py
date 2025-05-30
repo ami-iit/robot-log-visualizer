@@ -201,13 +201,23 @@ class MatplotlibViewerCanvas(FigureCanvas):
 
                 timestamps = data["timestamps"] - self.signal_provider.initial_time
 
-                (self.active_paths[path_string],) = self.axes.plot(
-                    timestamps,
-                    datapoints,
-                    label=legend_string,
-                    picker=True,
-                    color=next(self.color_palette),
-                )
+                if timestamps.size > 1:
+                    (self.active_paths[path_string],) = self.axes.plot(
+                        timestamps,
+                        datapoints,
+                        label=legend_string,
+                        picker=True,
+                        color=next(self.color_palette),
+                    )
+                else:
+                    (self.active_paths[path_string],) = self.axes.plot(
+                        timestamps,
+                        datapoints,
+                        label=legend_string,
+                        picker=True,
+                        color=next(self.color_palette),
+                        marker="o",
+                    )
 
         paths_to_be_canceled = []
         for active_path in self.active_paths.keys():

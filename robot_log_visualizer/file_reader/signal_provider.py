@@ -96,14 +96,16 @@ class SignalProvider(QThread):
                     # If len(value[text[0]].shape) == 2 then the text contains a string, otherwise it is empty
                     # We need to manually check the shape to handle the case in which the text is empty
                     data[key]["data"] = [
-                        TextLoggingMsg(
-                            text="".join(chr(c[0]) for c in value[text[0]]),
-                            level="".join(chr(c[0]) for c in value[level[0]]),
-                        )
-                        if len(value[text[0]].shape) == 2
-                        else TextLoggingMsg(
-                            text="",
-                            level="".join(chr(c[0]) for c in value[level[0]]),
+                        (
+                            TextLoggingMsg(
+                                text="".join(chr(c[0]) for c in value[text[0]]),
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
+                            if len(value[text[0]].shape) == 2
+                            else TextLoggingMsg(
+                                text="",
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
                         )
                         for text, level in zip(text_ref, level_ref)
                     ]
@@ -217,7 +219,7 @@ class SignalProvider(QThread):
         locker = QMutexLocker(self.robot_state_path_lock)
         value = self._robot_state_path
         return value
-    
+
     @property
     def max_arrow(self):
         locker = QMutexLocker(self._max_arrow_mutex)
@@ -399,7 +401,9 @@ class SignalProvider(QThread):
             data, _ = self.get_item_from_path(arrow_path)
             arrow = data[:, 3:]
             self._max_arrow_mutex.lock()
-            self._max_arrow = max(np.max(np.linalg.norm(arrow, axis=1)), self._max_arrow)
+            self._max_arrow = max(
+                np.max(np.linalg.norm(arrow, axis=1)), self._max_arrow
+            )
             self._max_arrow_mutex.unlock()
         self._3d_arrows_path_lock.unlock()
 

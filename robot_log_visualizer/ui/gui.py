@@ -103,7 +103,7 @@ class SetRobotModelDialog(QtWidgets.QDialog):
 
     def get_package_directory(self):
         return self.ui.packageDirLineEdit.text()
-    
+
     def buttonBox_on_click(self, button):
         self.clicked_button = button
 
@@ -113,12 +113,12 @@ class SetRobotModelDialog(QtWidgets.QDialog):
         if self.clicked_button is not None:
             return self.ui.buttonBox.buttonRole(self.clicked_button)
         return None
-    
+
     def get_clicked_button_text(self):
         if self.clicked_button is not None:
             return self.clicked_button.text()
         return None
-    
+
     def get_clicked_standard_button(self):
         return self.std_button
 
@@ -130,6 +130,7 @@ class SetRobotModelDialog(QtWidgets.QDialog):
         else:
             self.ui.arrowScaling_lineEdit.setText("")
             self.ui.arrowScaling_lineEdit.setEnabled(True)
+
 
 class About(QtWidgets.QMainWindow):
     def __init__(self):
@@ -727,8 +728,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             if std_button == QtWidgets.QDialogButtonBox.SaveAll:
                 if not self.dataset_loaded:
                     self.meshcat_provider.model_path = dlg.get_urdf_path()
-                    self.meshcat_provider.custom_package_dir = dlg.get_package_directory()
-                
+                    self.meshcat_provider.custom_package_dir = (
+                        dlg.get_package_directory()
+                    )
 
                 arrow_scaling_value = dlg.ui.arrowScaling_lineEdit.text()
                 if not arrow_scaling_value:
@@ -736,15 +738,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 else:
                     arrow_scaling_value = float(arrow_scaling_value)
                 self.signal_provider.set_custom_max_arrow(
-                    not dlg.ui.arrowScaling_checkBox.isChecked(),
-                    arrow_scaling_value
+                    not dlg.ui.arrowScaling_checkBox.isChecked(), arrow_scaling_value
                 )
             if std_button == QtWidgets.QDialogButtonBox.Save:
                 # we need to check which tab is selected in the dlg
                 if dlg.ui.tabWidget.currentIndex() == 0:
                     if not self.dataset_loaded:
                         self.meshcat_provider.model_path = dlg.get_urdf_path()
-                        self.meshcat_provider.custom_package_dir = dlg.get_package_directory()
+                        self.meshcat_provider.custom_package_dir = (
+                            dlg.get_package_directory()
+                        )
                 else:
                     arrow_scaling_value = dlg.ui.arrowScaling_lineEdit.text()
                     # if it is empty we set it to 1.0
@@ -754,7 +757,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                         arrow_scaling_value = float(arrow_scaling_value)
                     self.signal_provider.set_custom_max_arrow(
                         not dlg.ui.arrowScaling_checkBox.isChecked(),
-                        arrow_scaling_value
+                        arrow_scaling_value,
                     )
 
             else:

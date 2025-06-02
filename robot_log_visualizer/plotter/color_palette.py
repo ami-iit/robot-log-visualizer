@@ -34,3 +34,6 @@ class ColorPalette:
         self.current_index += 1
 
         return color
+
+    def __call__(self, index):
+        return self.get_color(index)

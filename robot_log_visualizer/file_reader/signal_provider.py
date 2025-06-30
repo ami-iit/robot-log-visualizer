@@ -76,6 +76,8 @@ class SignalProvider(QThread):
                 continue
             if key == "#refs#":
                 continue
+            if key == "#subsystem#":
+                continue
             if "data" in value.keys():
                 data[key] = {}
                 level_ref = value["data"]["level"]
@@ -121,6 +123,8 @@ class SignalProvider(QThread):
             if not isinstance(value, h5py._hl.group.Group):
                 continue
             if key == "#refs#":
+                continue
+            if key == "#subsystem#":
                 continue
             if key == "log":
                 continue

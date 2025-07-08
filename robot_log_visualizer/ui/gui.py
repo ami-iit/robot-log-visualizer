@@ -308,6 +308,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
+        else:
+            # If the user presses the space bar, the play/pause state is toggled.
+            if event.key() == Qt.Key_Space:
+                # toggle the play/pause button
+                if self.ui.startButton.isEnabled():
+                    self.ui.startButton.click()
+                else:
+                    self.ui.pauseButton.click()
+
 
     def toolButton_on_click(self):
         self.plot_items.append(

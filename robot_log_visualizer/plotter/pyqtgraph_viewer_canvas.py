@@ -219,7 +219,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             self._deselect(candidate)
         else:
             assert nearest_curve is not None  # mypy‑friendly
-            self._select(candidate, nearest_curve.pen)
+            self._select(candidate, nearest_curve.opts["pen"])
 
     def _select(self, pt: Point, pen: pg.QtGui.QPen) -> None:
         """Add label + circle marker on *pt*."""

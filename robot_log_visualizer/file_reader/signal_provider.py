@@ -51,6 +51,14 @@ class SignalProvider(QThread):
         self._3d_trajectories_path = {}
         self._3d_trajectories_path_lock = QMutex()
 
+        self._3d_arrows = {}
+        self._3d_arrows_path_lock = QMutex()
+
+        self._max_arrow = 0
+        self._custom_max_arrow = 0
+        self._is_custom_max_arrow_used = False
+        self._max_arrow_mutex = QMutex()
+
         self.period = period
 
         self.data = {}
@@ -90,14 +98,16 @@ class SignalProvider(QThread):
                     # If len(value[text[0]].shape) == 2 then the text contains a string, otherwise it is empty
                     # We need to manually check the shape to handle the case in which the text is empty
                     data[key]["data"] = [
-                        TextLoggingMsg(
-                            text="".join(chr(c[0]) for c in value[text[0]]),
-                            level="".join(chr(c[0]) for c in value[level[0]]),
-                        )
-                        if len(value[text[0]].shape) == 2
-                        else TextLoggingMsg(
-                            text="",
-                            level="".join(chr(c[0]) for c in value[level[0]]),
+                        (
+                            TextLoggingMsg(
+                                text="".join(chr(c[0]) for c in value[text[0]]),
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
+                            if len(value[text[0]].shape) == 2
+                            else TextLoggingMsg(
+                                text="",
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
                         )
                         for text, level in zip(text_ref, level_ref)
                     ]
@@ -214,6 +224,14 @@ class SignalProvider(QThread):
         value = self._robot_state_path
         return value
 
+    @property
+    def max_arrow(self):
+        locker = QMutexLocker(self._max_arrow_mutex)
+        if self._is_custom_max_arrow_used:
+            return self._custom_max_arrow
+        else:
+            return self._max_arrow
+
     @robot_state_path.setter
     def robot_state_path(self, robot_state_path):
         locker = QMutexLocker(self.robot_state_path_lock)
@@ -308,6 +326,14 @@ class SignalProvider(QThread):
 
         return robot_state
 
+    def set_custom_max_arrow(self, use_custom_max_arrow: bool, max_arrow: float):
+        _ = QMutexLocker(self._max_arrow_mutex)
+        self._is_custom_max_arrow_used = use_custom_max_arrow
+        if use_custom_max_arrow:
+            self._custom_max_arrow = max_arrow
+        else:
+            self._custom_max_arrow = 0
+
     def get_3d_point_at_index(self, index):
         points = {}
 
@@ -324,6 +350,18 @@ class SignalProvider(QThread):
         self._3d_points_path_lock.unlock()
 
         return points
+
+    def get_3d_arrow_at_index(self, index):
+        arrows = {}
+
+        self._3d_arrows_path_lock.lock()
+
+        for key, value in self._3d_arrows.items():
+            arrows[key] = self.get_item_from_path_at_index(value, index)
+
+        self._3d_arrows_path_lock.unlock()
+
+        return arrows
 
     def get_3d_trajectory_at_index(self, index):
         trajectories = {}
@@ -359,6 +397,24 @@ class SignalProvider(QThread):
         self._3d_points_path_lock.lock()
         del self._3d_points_path[key]
         self._3d_points_path_lock.unlock()
+
+    def register_3d_arrow(self, key, arrow_path):
+        self._3d_arrows_path_lock.lock()
+        self._3d_arrows[key] = arrow_path
+        for _, value in self._3d_arrows.items():
+            data, _ = self.get_item_from_path(arrow_path)
+            arrow = data[:, 3:]
+            self._max_arrow_mutex.lock()
+            self._max_arrow = max(
+                np.max(np.linalg.norm(arrow, axis=1)), self._max_arrow
+            )
+            self._max_arrow_mutex.unlock()
+        self._3d_arrows_path_lock.unlock()
+
+    def unregister_3d_arrow(self, key):
+        self._3d_arrows_path_lock.lock()
+        del self._3d_arrows[key]
+        self._3d_arrows_path_lock.unlock()
 
     def register_3d_trajectory(self, key, trajectory_path):
         self._3d_trajectories_path_lock.lock()

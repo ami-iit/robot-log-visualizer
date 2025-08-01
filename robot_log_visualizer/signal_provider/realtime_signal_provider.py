@@ -3,11 +3,14 @@
 # BSD 3-Clause License
 
 import time
-import numpy as np
+import traceback
 from collections import deque
+
+import numpy as np
+
 from robot_log_visualizer.signal_provider.signal_provider import (
-    SignalProvider,
     ProviderType,
+    SignalProvider,
 )
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
@@ -16,7 +19,9 @@ def are_deps_installed():
     try:
         import bipedal_locomotion_framework.bindings
         import yarp
-    except ImportError:
+    except ImportError as e:
+        print("Missing dependencies for RealtimeSignalProvider:", e)
+        traceback.print_exc()
         return False
     return True
 
@@ -262,4 +267,3 @@ class RealtimeSignalProvider(SignalProvider):
 
             if self.state == PeriodicThreadState.closed:
                 return
-

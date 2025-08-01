@@ -55,13 +55,14 @@ import pyqtconsole.highlighter as hl
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
-    def __init__(
-        self, parent=None, model_path=None, package_dir=None, model_modificable=True
-    ):
+    def __init__(self, meshcat_provider, parent=None, dataset_loaded=False):
         # call QMainWindow constructor
         super().__init__(parent)
         self.ui = Ui_setRobotModelDialog()
         self.ui.setupUi(self)
+
+        model_path = meshcat_provider.model_path
+        package_dir = meshcat_provider.custom_package_dir
 
         if model_path:
             self.ui.robotModelLineEdit.setText(model_path)
@@ -69,11 +70,16 @@ class SetRobotModelDialog(QtWidgets.QDialog):
         if package_dir:
             self.ui.packageDirLineEdit.setText(package_dir)
 
-        self.ui.robotModelLineEdit.setEnabled(model_modificable)
-        self.ui.packageDirLineEdit.setEnabled(model_modificable)
+        self.ui.robotModelLineEdit.setEnabled(not dataset_loaded)
+        self.ui.packageDirLineEdit.setEnabled(not dataset_loaded)
 
         self.ui.robotModelToolButton.clicked.connect(self.open_urdf_file)
         self.ui.packageDirToolButton.clicked.connect(self.open_package_directory)
+
+        if dataset_loaded:
+            frames = meshcat_provider.robot_frames()
+            self.ui.frameNameComboBox.addItems(frames)
+            self.ui.frameNameComboBox.setCurrentText(meshcat_provider.base_frame)
 
     def open_urdf_file(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -321,6 +327,15 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
                 self.ui.timeSlider.setValue(new_index)
                 self.slider_pressed = False
+        else:
+            # If the user presses the space bar, the play/pause state is toggled.
+            if event.key() == Qt.Key_Space:
+                # toggle the play/pause button
+                if self.ui.startButton.isEnabled():
+                    self.ui.startButton.click()
+                else:
+                    self.ui.pauseButton.click()
+
 
     def toolButton_on_click(self):
         self.plot_items.append(PlotItem(period=self.animation_period))
@@ -624,8 +639,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         ):
             # if not loaded we print an error but we continue
             msg = "Unable to load the model: "
-            if self.meshcat_provider.custom_model_path:
-                msg = msg + self.meshcat_provider.custom_model_path
+            if self.meshcat_provider.model_path:
+                msg = msg + self.meshcat_provider.model_path
             else:
                 msg = msg + self.signal_provider.robot_name
 
@@ -755,15 +770,21 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def open_set_robot_model(self):
         dlg = SetRobotModelDialog(
+            self.meshcat_provider,
             self,
-            self.meshcat_provider.custom_model_path,
-            self.meshcat_provider.custom_package_dir,
-            not self.dataset_loaded,
+            self.dataset_loaded,
         )
         outcome = dlg.exec()
         if outcome == QDialog.Accepted:
-            self.meshcat_provider.custom_model_path = dlg.get_urdf_path()
-            self.meshcat_provider.custom_package_dir = dlg.get_package_directory()
+            if not self.dataset_loaded:
+                self.meshcat_provider.model_path = dlg.get_urdf_path()
+                self.meshcat_provider.custom_package_dir = dlg.get_package_directory()
+            else:
+                self.meshcat_provider.load_model(
+                    self.signal_provider.joints_name,
+                    self.signal_provider.robot_name,
+                    base_frame=dlg.ui.frameNameComboBox.currentText(),
+                )
 
     def dropEvent(self, event):
         if len(event.mimeData().urls()) != 1:

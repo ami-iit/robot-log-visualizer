@@ -2,13 +2,15 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-import math
-import numpy as np
-from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
-from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
-import idyntree.swig as idyn
 import abc
+import math
 from enum import Enum
+
+import idyntree.swig as idyn
+import numpy as np
+from PyQt5.QtCore import QMutex, QMutexLocker, QThread, pyqtSignal
+
+from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 
 
 class ProviderType(Enum):
@@ -76,6 +78,122 @@ class SignalProvider(QThread):
         self._current_time = 0
 
         self.trajectory_span = 200
+
+    def __populate_text_logging_data(self, file_object):
+        data = {}
+        for key, value in file_object.items():
+            if not isinstance(value, h5py._hl.group.Group):
+                continue
+            if key == "#refs#":
+                continue
+            if key == "#subsystem#":
+                continue
+            if "data" in value.keys():
+                data[key] = {}
+                level_ref = value["data"]["level"]
+                text_ref = value["data"]["text"]
+
+                data[key]["timestamps"] = np.squeeze(np.array(value["timestamps"]))
+
+                # New way to store the struct array in robometry https://github.com/robotology/robometry/pull/175
+                if text_ref.shape[0] == len(data[key]["timestamps"]):
+                    # If len(value[text[0]].shape) == 2 then the text contains a string, otherwise it is empty
+                    # We need to manually check the shape to handle the case in which the text is empty
+                    data[key]["data"] = [
+                        (
+                            TextLoggingMsg(
+                                text="".join(chr(c[0]) for c in value[text[0]]),
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
+                            if len(value[text[0]].shape) == 2
+                            else TextLoggingMsg(
+                                text="",
+                                level="".join(chr(c[0]) for c in value[level[0]]),
+                            )
+                        )
+                        for text, level in zip(text_ref, level_ref)
+                    ]
+
+                # Old approach (before https://github.com/robotology/robometry/pull/175)
+                else:
+                    data[key]["data"] = [
+                        TextLoggingMsg(
+                            text="".join(chr(c[0]) for c in value[text]),
+                            level="".join(chr(c[0]) for c in value[level]),
+                        )
+                        for text, level in zip(text_ref[0], level_ref[0])
+                    ]
+
+            else:
+                data[key] = self.__populate_text_logging_data(file_object=value)
+
+        return data
+
+    def __populate_numerical_data(self, file_object):
+        data = {}
+        for key, value in file_object.items():
+            if not isinstance(value, h5py._hl.group.Group):
+                continue
+            if key == "#refs#":
+                continue
+            if key == "#subsystem#":
+                continue
+            if key == "log":
+                continue
+            if "data" in value.keys():
+                data[key] = {}
+                data[key]["data"] = np.atleast_1d(np.squeeze(np.array(value["data"])))
+                data[key]["timestamps"] = np.atleast_1d(
+                    np.squeeze(np.array(value["timestamps"]))
+                )
+
+                # if the initial or end time has been updated we can also update the entire timestamps dataset
+                if data[key]["timestamps"][0] < self.initial_time:
+                    self.timestamps = data[key]["timestamps"]
+                    self.initial_time = self.timestamps[0]
+
+                if data[key]["timestamps"][-1] > self.end_time:
+                    self.timestamps = data[key]["timestamps"]
+                    self.end_time = self.timestamps[-1]
+
+                # In yarp telemetry v0.4.0 the elements_names was saved.
+                if "elements_names" in value.keys():
+                    elements_names_ref = value["elements_names"]
+                    data[key]["elements_names"] = [
+                        "".join(chr(c[0]) for c in value[ref])
+                        for ref in elements_names_ref[0]
+                    ]
+            else:
+                data[key] = self.__populate_numerical_data(file_object=value)
+
+        return data
+
+    def open_mat_file(self, file_name: str):
+        with h5py.File(file_name, "r") as file:
+            root_variable = file.get(self.root_name)
+            self.data = self.__populate_numerical_data(file)
+
+            if "log" in root_variable.keys():
+                self.text_logging_data["log"] = self.__populate_text_logging_data(
+                    root_variable["log"]
+                )
+
+            for name in file.keys():
+                if "description_list" in file[name].keys():
+                    self.root_name = name
+                    break
+
+            joint_ref = root_variable["description_list"]
+            self.joints_name = [
+                "".join(chr(c[0]) for c in file[ref]) for ref in joint_ref[0]
+            ]
+            if "yarp_robot_name" in root_variable.keys():
+                robot_name_ref = root_variable["yarp_robot_name"]
+                try:
+                    self.robot_name = "".join(chr(c[0]) for c in robot_name_ref)
+                except:
+                    pass
+            self.index = 0
 
         self.provider_type = provider_type
 

@@ -2,17 +2,15 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-from PyQt5.QtCore import QThread, QMutex, QMutexLocker
-
 import os
 import re
+import time
 from pathlib import Path
 
-import numpy as np
-import time
-
 import idyntree.swig as idyn
+import numpy as np
 from idyntree.visualize import MeshcatVisualizer
+from PyQt5.QtCore import QMutex, QMutexLocker, QThread
 
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
@@ -31,11 +29,14 @@ class MeshcatProvider(QThread):
         self._is_model_loaded = False
         self._signal_provider = None
 
-        self.custom_model_path = ""
+        self.model_path = ""
         self.custom_package_dir = ""
+        self.base_frame = ""
         self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
+
+        self.frame_T_base = np.eye(4)
 
     @property
     def state(self):
@@ -73,7 +74,7 @@ class MeshcatProvider(QThread):
     def set_signal_provider(self, signal_provider):
         self._signal_provider = signal_provider
 
-    def load_model(self, considered_joints, model_name):
+    def load_model(self, considered_joints, model_name, base_frame=None):
         def get_model_path_from_envs(env_list):
             return [
                 Path(f) if (env != "AMENT_PREFIX_PATH") else Path(f) / "share"
@@ -104,23 +105,21 @@ class MeshcatProvider(QThread):
 
             return model_joints_index
 
-        self._is_model_loaded = False
-
         # Load the model
         model_loader = idyn.ModelLoader()
 
         self.model_joints_index = []
         # In this case the user specify the model path
-        if self.custom_model_path:
+        if self.custom_package_dir:
             self.model_joints_index = find_model_joints(
-                self.custom_model_path, considered_joints
+                self.model_path, considered_joints
             )
             considered_model_joints = [
                 considered_joints[i] for i in self.model_joints_index
             ]
 
             model_loader.loadReducedModelFromFile(
-                self.custom_model_path,
+                self.model_path,
                 considered_model_joints,
                 "urdf",
                 [self.custom_package_dir],
@@ -141,7 +140,7 @@ class MeshcatProvider(QThread):
 
                     if model_filenames:
                         model_found_in_env_folders = True
-                        self.custom_model_path = str(model_filenames[0])
+                        self.model_path = str(model_filenames[0])
                         break
 
             # If the model is not found we exit
@@ -149,25 +148,70 @@ class MeshcatProvider(QThread):
                 return False
 
             self.model_joints_index = find_model_joints(
-                self.custom_model_path, considered_joints
+                self.model_path, considered_joints
             )
             considered_model_joints = [
                 considered_joints[i] for i in self.model_joints_index
             ]
             model_loader.loadReducedModelFromFile(
-                self.custom_model_path, considered_model_joints
+                self.model_path, considered_model_joints
             )
 
         if not model_loader.isValid():
             return False
 
+        self.meshcat_visualizer_mutex.lock()
+
+        # if the model is already loaded we remove it
+        if self._is_model_loaded:
+            self._meshcat_visualizer.delete(shape_name="robot")
+            self._is_model_loaded = False
+
+        model = model_loader.model()
+        if base_frame is None:
+            self.frame_T_base = np.eye(4)
+            self.base_frame = model.getFrameName(model.getDefaultBaseLink())
+            link_frame = None
+        else:
+            base_frame_index = model.getFrameIndex(base_frame)
+            if base_frame_index == -1:  # idyn.FRAME_INVALID_INDEX
+                raise ValueError(
+                    "MeshcatProvider: Unable to find the base frame "
+                    + base_frame
+                    + " in the model."
+                )
+
+            frame_T_base = model.getFrameTransform(base_frame_index)
+            frame_T_base = frame_T_base.inverse().asHomogeneousTransform()
+            self.frame_T_base = frame_T_base.toNumPy()
+
+            link_frame = model.getLinkName(model.getFrameLink(base_frame_index))
+
+            self.base_frame = base_frame
+
         self._meshcat_visualizer.load_model(
-            model_loader.model(), model_name="robot", color=0.8
+            model, model_name="robot", color=0.8, base_link=link_frame
         )
 
         self._is_model_loaded = True
 
+        self.meshcat_visualizer_mutex.unlock()
+
         return True
+
+    def robot_frames(self):
+        frames = []
+        if not self._is_model_loaded:
+            return frames
+
+        model = self._meshcat_visualizer.model["robot"]
+        frames_number = model.getNrOfFrames()
+
+        for i in range(frames_number):
+            frame = model.getFrameName(i)
+            frames.append(frame)
+
+        return frames
 
     def run(self):
         identity = np.eye(3)
@@ -183,9 +227,16 @@ class MeshcatProvider(QThread):
                 robot_state = self._signal_provider.get_robot_state_at_index(index)
                 self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians
+                # we need to compute the base transform as
+                # I_T_B = I_T_F * frame_T_Base
+                # I_R_B = I_R_F * frame_R_Base
+                # I_p_B = I_p_F + I_R_F * frame_p_Base
                 self._meshcat_visualizer.set_multibody_system_state(
-                    base_position=robot_state["base_position"],
-                    base_rotation=robot_state["base_orientation"],
+                    base_position=robot_state["base_orientation"]
+                    @ self.frame_T_base[:3, 3]
+                    + robot_state["base_position"],
+                    base_rotation=robot_state["base_orientation"]
+                    @ self.frame_T_base[:3, :3],
                     joint_value=robot_state["joints_position"][self.model_joints_index],
                     model_name="robot",
                 )
@@ -230,4 +281,3 @@ class MeshcatProvider(QThread):
 
             if self.state == PeriodicThreadState.closed:
                 return
-

@@ -3,7 +3,6 @@
 # Released under the terms of the BSD 3-Clause License
 
 # PyQt5
-import threading
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import QUrl
 from PyQt5.QtCore import pyqtSlot, Qt, QMutex, QMutexLocker
@@ -53,7 +52,6 @@ from time import localtime, strftime
 from pyqtconsole.console import PythonConsole
 import pyqtconsole.highlighter as hl
 
-import time
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -713,7 +711,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.realtime_connection_enabled = True
 
         # Do initial connection to populate the necessary data
-        if not self.signal_provider.open("/rtLoggingVectorCollections"):
+        if not self.signal_provider.open("/yarp-robot-logger/rt_logging"):
             self.logger.write_to_log("Could not connect to the real-time logger.")
             self.realtime_connection_enabled = False
             self.signal_provider = None

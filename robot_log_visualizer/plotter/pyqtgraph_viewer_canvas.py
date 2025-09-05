@@ -74,8 +74,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             signal_provider: An instance of `SignalProvider`.
         """
 
-        print(f"==== set_signal_provider with {signal_provider=}")
-
         if signal_provider is None:
             return
 
@@ -92,19 +90,27 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
 
         New items are added, disappeared items removed. Existing ones are
         left untouched to avoid flicker.
-
-        In real-time mode, update data of existing curves.
         """
         if self._signal_provider is None:
             return
 
         self._add_missing_curves(paths, legends)
         self._remove_obsolete_curves(paths)
-        # Always show the full time span
-        self._plot.setXRange(
-            0.0,
-            self._signal_provider.end_time - self._signal_provider.initial_time,
-        )
+
+        # Set the X axis range based on the provider type
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            # For real-time data, show a fixed window with 0 set at the right edge for the latest data
+            self._plot.setXRange(-self._signal_provider.realtime_fixed_plot_window, 0.0)
+        else:
+            # Default behavior
+            self._plot.setXRange(
+                0.0,
+                self._signal_provider.end_time - self._signal_provider.initial_time,
+            )
+
+        # For real-time data enable autoscaling of Y axis
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            self._plot.plotItem.vb.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
 
     # The following trio is wired to whoever controls the replay/stream
     def pause_animation(self) -> None:  # noqa: D401
@@ -205,7 +211,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
     def _update_realtime_curves(self):
         """Update all curves with the latest data from the signal provider."""
 
-        print("==== _update_realtime_curves called")
         if self._signal_provider is None:
             return
         for key, curve in self._curves.items():
@@ -218,7 +223,10 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 y = data["data"][:, int(path[-1])]
             except (IndexError, ValueError):
                 y = data["data"][:]
-            x = data["timestamps"] - self._signal_provider.initial_time
+
+            # Set the 0 of the x axis to the latest timestamp
+            latest_time = data["timestamps"][-1] if len(data["timestamps"]) > 0 else 0
+            x = data["timestamps"] - latest_time
             curve.setData(x, y)
 
     def _on_mouse_click(self, event) -> None:  # noqa: N802

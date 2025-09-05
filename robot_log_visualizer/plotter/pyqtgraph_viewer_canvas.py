@@ -11,6 +11,7 @@ import pyqtgraph as pg  # type: ignore
 from PyQt5 import QtCore, QtWidgets  # type: ignore
 
 from robot_log_visualizer.plotter.color_palette import ColorPalette
+from robot_log_visualizer.signal_provider.signal_provider import ProviderType
 
 # ------------------------------------------------------------------------
 # Type aliases
@@ -72,13 +73,27 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         Args:
             signal_provider: An instance of `SignalProvider`.
         """
+
+        print(f"==== set_signal_provider with {signal_provider=}")
+
+        if signal_provider is None:
+            return
+
         self._signal_provider = signal_provider
+
+        # Connect to real-time updates for real-time provider
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            self._signal_provider.update_index_signal.connect(
+                self._update_realtime_curves
+            )
 
     def update_plots(self, paths: Sequence[Path], legends: Sequence[Legend]) -> None:
         """Synchronise plots with the *paths* list.
 
         New items are added, disappeared items removed. Existing ones are
         left untouched to avoid flicker.
+
+        In real-time mode, update data of existing curves.
         """
         if self._signal_provider is None:
             return
@@ -186,6 +201,25 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             return
 
         self._vline.setValue(self._signal_provider.current_time)
+
+    def _update_realtime_curves(self):
+        """Update all curves with the latest data from the signal provider."""
+
+        print("==== _update_realtime_curves called")
+        if self._signal_provider is None:
+            return
+        for key, curve in self._curves.items():
+            # Drill down to the data array using the path
+            path = key.split("/")
+            data = self._signal_provider.data
+            for subkey in path[:-1]:
+                data = data[subkey]
+            try:
+                y = data["data"][:, int(path[-1])]
+            except (IndexError, ValueError):
+                y = data["data"][:]
+            x = data["timestamps"] - self._signal_provider.initial_time
+            curve.setData(x, y)
 
     def _on_mouse_click(self, event) -> None:  # noqa: N802
         """Handle a left‑click: select or unselect the nearest data point."""

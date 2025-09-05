@@ -4,11 +4,11 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple, Sequence, Iterable
+from typing import Dict, Iterable, Sequence, Tuple
 
-from PyQt5 import QtCore, QtWidgets  # type: ignore
-import pyqtgraph as pg  # type: ignore
 import numpy as np
+import pyqtgraph as pg  # type: ignore
+from PyQt5 import QtCore, QtWidgets  # type: ignore
 
 from robot_log_visualizer.plotter.color_palette import ColorPalette
 
@@ -31,7 +31,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
     def __init__(
         self,
         parent: QtWidgets.QWidget | None,
-        signal_provider,
         period: float,
         *,
         click_radius: float | None = None,
@@ -41,8 +40,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
 
         Args:
             parent: Parent widget or *None*.
-            signal_provider: Object exposing ``data``, ``initial_time``,
-                ``end_time`` and a **dynamic** ``current_time`` attribute.
             period: Update period for the vertical line (seconds).
             click_radius: Override :pyattr:`DEFAULT_RADIUS`.
             marker_size: Override :pyattr:`DEFAULT_MARKER_SIZE`.
@@ -50,7 +47,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         super().__init__(parent)
 
         # injected dependencies
-        self._signal_provider = signal_provider
+        self._signal_provider = None
         self._period_ms: int = int(period * 1000)
         self._click_radius: float = click_radius or self.DEFAULT_RADIUS
         self._marker_size: int = marker_size or self.DEFAULT_MARKER_SIZE
@@ -66,14 +63,26 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         self._connect_signals()
 
     # -------------------------------------------------------------#
-    # Public API (called from the outside)                                  #
+    # Public API (called from the outside)                         #
     # -------------------------------------------------------------#
+
+    def set_signal_provider(self, signal_provider) -> None:
+        """Set the signal provider to fetch data from.
+
+        Args:
+            signal_provider: An instance of `SignalProvider`.
+        """
+        self._signal_provider = signal_provider
+
     def update_plots(self, paths: Sequence[Path], legends: Sequence[Legend]) -> None:
         """Synchronise plots with the *paths* list.
 
         New items are added, disappeared items removed. Existing ones are
         left untouched to avoid flicker.
         """
+        if self._signal_provider is None:
+            return
+
         self._add_missing_curves(paths, legends)
         self._remove_obsolete_curves(paths)
         # Always show the full time span
@@ -173,6 +182,9 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
 
     def _update_vline(self) -> None:
         """Move the vertical line to ``current_time``."""
+        if self._signal_provider is None:
+            return
+
         self._vline.setValue(self._signal_provider.current_time)
 
     def _on_mouse_click(self, event) -> None:  # noqa: N802

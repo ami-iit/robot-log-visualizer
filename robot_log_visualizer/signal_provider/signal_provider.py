@@ -79,6 +79,8 @@ class SignalProvider(QThread):
 
         self.trajectory_span = 200
 
+        self.provider_type = provider_type
+
     def __populate_text_logging_data(self, file_object):
         data = {}
         for key, value in file_object.items():

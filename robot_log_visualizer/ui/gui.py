@@ -523,7 +523,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # clear the selection to prepare a new one
         self.ui.variableTreeWidget.clearSelection()
-        for active_path_str in self.plot_items[index].canvas.active_paths.keys():
+        for active_path_str in self.plot_items[index].canvas._curves.keys():
             path = active_path_str.split("/")
 
             # select the item in the tree from the path

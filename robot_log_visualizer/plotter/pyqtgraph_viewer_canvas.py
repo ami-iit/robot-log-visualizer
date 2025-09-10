@@ -94,6 +94,11 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         if self._signal_provider is None:
             return
 
+        # For real-time provider, update the set of selected signals to buffer
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            selected_keys = ["::".join(path) for path in paths]
+            self._signal_provider.set_selected_signals(selected_keys)
+
         self._add_missing_curves(paths, legends)
         self._remove_obsolete_curves(paths)
 
@@ -101,6 +106,8 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         if self._signal_provider.provider_type == ProviderType.REALTIME:
             # For real-time data, show a fixed window with 0 set at the right edge for the latest data
             self._plot.setXRange(-self._signal_provider.realtime_fixed_plot_window, 0.0)
+            # Disable mouse panning on x axis
+            self._plot.plotItem.vb.setMouseEnabled(x=False, y=True)
         else:
             # Default behavior
             self._plot.setXRange(

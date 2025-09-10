@@ -25,12 +25,14 @@ def are_deps_installed():
         return False
     return True
 
+
 class DequeToNumpyLeaf(dict):
     """
     A dictionary-like object that internally stores "data" and "timestamps"
     as deques for efficient appends/popleft, but returns them as NumPy arrays
     when accessed via dict["data"] or dict["timestamps"].
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -66,6 +68,7 @@ class DequeToNumpyLeaf(dict):
         # else:
         super().__setitem__(key, value)
 
+
 class RealtimeSignalProvider(SignalProvider):
     def __init__(self, period: float, signal_root_name: str):
         """
@@ -99,6 +102,12 @@ class RealtimeSignalProvider(SignalProvider):
         self.data = DequeToNumpyLeaf()
         self._timestamps = deque()
 
+        self.selected_signals = set()  # Track signals to buffer
+
+    def set_selected_signals(self, signals):
+        """Update the set of signals to buffer (called by the plotter)."""
+        self.selected_signals = set(signals)
+
     def __len__(self):
         return len(self._timestamps)
 
@@ -112,6 +121,7 @@ class RealtimeSignalProvider(SignalProvider):
           - raw_data[key]["timestamps"]
         Any sample older than the fixed time window is removed.
         """
+
         if keys[0] not in raw_data:
             raw_data[keys[0]] = DequeToNumpyLeaf()
 
@@ -120,7 +130,7 @@ class RealtimeSignalProvider(SignalProvider):
             if "data" not in raw_data[keys[0]]:
                 raw_data[keys[0]]["data"] = deque()
                 raw_data[keys[0]]["timestamps"] = deque()
-            raw_data[keys[0]].append("data" ,value)
+            raw_data[keys[0]].append("data", value)
             raw_data[keys[0]].append("timestamps", recent_timestamp)
             # Remove old data outside the time window.
             while raw_data[keys[0]].get_raw("timestamps") and (
@@ -244,11 +254,19 @@ class RealtimeSignalProvider(SignalProvider):
                         self.initial_time = self._timestamps[0]
                         self.end_time = self._timestamps[-1]
 
-                    # For each key in the received data (except timestamps),
+                    # For signal selected from the user that is in the received data (except timestamps),
                     # update the appropriate buffer.
                     for key_string, value in vc_input.items():
                         if key_string == "robot_realtime::timestamps":
                             continue
+
+                        # Check if any selected signal starts with this path
+                        match = any(
+                            sel.startswith(key_string) for sel in self.selected_signals
+                        )
+                        if not match:
+                            continue
+
                         keys = key_string.split("::")
                         self._update_data_buffer(
                             self.data, keys, value, recent_timestamp

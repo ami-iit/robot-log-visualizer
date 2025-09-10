@@ -32,7 +32,12 @@ class MeshcatProvider(QThread):
         self.model_path = ""
         self.custom_package_dir = ""
         self.base_frame = ""
-        self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
+        self.env_list = [
+            "GAZEBO_MODEL_PATH",
+            "GZ_SIM_RESOURCE_PATH",
+            "ROS_PACKAGE_PATH",
+            "AMENT_PREFIX_PATH",
+        ]
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
 
@@ -135,7 +140,7 @@ class MeshcatProvider(QThread):
                     model_filenames = [
                         folder_model_path / Path(f)
                         for f in os.listdir(folder_model_path.absolute())
-                        if re.search("[a-zA-Z0-9_]*\.urdf", f)
+                        if re.search(r"[a-zA-Z0-9_]*\.urdf", f)
                     ]
 
                     if model_filenames:

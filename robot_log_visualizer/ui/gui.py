@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QDialogButtonBox,
 )
+from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
 from robot_log_visualizer.signal_provider.realtime_signal_provider import (
     RealtimeSignalProvider,
     are_deps_installed,
@@ -23,6 +24,7 @@ from robot_log_visualizer.signal_provider.matfile_signal_provider import (
     MatfileSignalProvider,
 )
 
+from robot_log_visualizer.signal_provider.signal_provider import SignalProvider
 from robot_log_visualizer.ui.plot_item import PlotItem
 from robot_log_visualizer.ui.video_item import VideoItem
 from robot_log_visualizer.ui.text_logging import TextLoggingItem
@@ -170,9 +172,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.about = About()
 
-        self.signal_provider = None
+        self.signal_provider: SignalProvider = None
 
-        self.meshcat_provider = meshcat_provider
+        self.meshcat_provider: MeshcatProvider = meshcat_provider
 
         self.tool_button = QToolButton()
         self.tool_button.setText("+")
@@ -335,7 +337,6 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                     self.ui.startButton.click()
                 else:
                     self.ui.pauseButton.click()
-
 
     def toolButton_on_click(self):
         self.plot_items.append(PlotItem(period=self.animation_period))
@@ -681,7 +682,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         video_filenames = [
             str(pathlib.Path(file_name).parent.absolute() / pathlib.Path(f))
             for f in os.listdir(pathlib.Path(file_name).parent.absolute())
-            if re.search(prefix + "_[a-zA-Z0-9_]*\.mp4$", f)
+            if re.search(prefix + r"_[a-zA-Z0-9_]*\.mp4$", f)
         ]
 
         # for every video we create a video item and we append it to the tab
@@ -745,8 +746,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         ):
             # if not loaded we print an error but we continue
             msg = "Unable to load the model: "
-            if self.meshcat_provider.custom_model_path:
-                msg = msg + self.meshcat_provider.custom_model_path
+            if self.meshcat_provider.model_path:
+                msg = msg + self.meshcat_provider.model_path
             else:
                 msg = msg + self.signal_provider.robot_name
 

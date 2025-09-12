@@ -37,9 +37,22 @@ class DequeToNumpyLeaf(dict):
         super().__init__(*args, **kwargs)
 
     def append(self, key, value):
+        """
+        Append a value to the deque associated with the given key.
+        Args:
+            key (str): The key for the deque ('data' or 'timestamps').
+            value: The value to append.
+        """
         super().__getitem__(key).append(value)
 
     def get_raw(self, key):
+        """
+        Get the raw deque object for the given key.
+        Args:
+            key (str): The key for the deque ('data' or 'timestamps').
+        Returns:
+            deque: The raw deque object.
+        """
         return super().__getitem__(key)
 
     def __getitem__(self, key):
@@ -57,15 +70,11 @@ class DequeToNumpyLeaf(dict):
 
     def __setitem__(self, key, value):
         """
-        If you (or code) try to do leaf["data"] = something, you might
-        want to do a custom setter. For simplicity, we just set it normally
-        for non-'data_deque'/'timestamps_deque' keys.
+        Set the value for the given key. For non-'data'/'timestamps' keys, sets normally.
+        Args:
+            key (str): The key to set.
+            value: The value to set.
         """
-        # Example logic if you want to intercept "data":
-        # if key == "data":
-        #     # Convert to deque
-        #     self["data_deque"] = deque(value)
-        # else:
         super().__setitem__(key, value)
 
 
@@ -112,12 +121,16 @@ class RealtimeSignalProvider(SignalProvider):
         """Add signals to the buffer set."""
         if isinstance(signals, str):
             signals = {signals}
-        print(f"==== Adding signals to buffer: {signals} ====")
         self.buffered_signals.update(signals)
         # Always include joints_state
         self.buffered_signals.add("robot_realtime::joints_state::positions")
 
     def __len__(self):
+        """
+        Return the number of timestamps in the buffer.
+        Returns:
+            int: Number of timestamps.
+        """
         return len(self._timestamps)
 
     def _update_data_buffer(
@@ -241,9 +254,18 @@ class RealtimeSignalProvider(SignalProvider):
             self.index_lock.unlock()
 
     def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
+        """
+        Get the latest data item from the given path at the latest index.
+        Args:
+            path: Path to the data item.
+            index: Index (ignored, always latest).
+            default_path: Default path if not found.
+            neighbor: Neighbor offset (currently not handled).
+        Returns:
+            np.ndarray or None: Latest data item, or None if not available.
+        """
         # With respect to the parent implementation, here index is always the latest index
         # TODO: handle case with neighbor > 0
-
         data, timestamps = self.get_item_from_path(path, default_path)
         if (
             data is None
@@ -252,7 +274,6 @@ class RealtimeSignalProvider(SignalProvider):
             or len(timestamps) == 0
         ):
             return None
-
         return data[-1, :]
 
     def run(self):

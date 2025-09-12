@@ -150,6 +150,9 @@ class MeshcatProvider(QThread):
 
             # If the model is not found we exit
             if not model_found_in_env_folders:
+                print(
+                    f"MeshcatProvider: Unable to find the model {model_name} in the environment folders."
+                )
                 return False
 
             self.model_joints_index = find_model_joints(

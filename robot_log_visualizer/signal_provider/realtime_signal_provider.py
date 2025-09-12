@@ -240,6 +240,21 @@ class RealtimeSignalProvider(SignalProvider):
         finally:
             self.index_lock.unlock()
 
+    def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
+        # With respect to the parent implementation, here index is always the latest index
+        # TODO: handle case with neighbor > 0
+
+        data, timestamps = self.get_item_from_path(path, default_path)
+        if (
+            data is None
+            or timestamps is None
+            or len(self.timestamps) == 0
+            or len(timestamps) == 0
+        ):
+            return None
+
+        return data[-1, :]
+
     def run(self):
         """
         This is the periodic thread that reads data from the remote realtime logger.

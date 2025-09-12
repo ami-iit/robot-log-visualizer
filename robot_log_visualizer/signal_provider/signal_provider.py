@@ -6,6 +6,7 @@ import abc
 import math
 from enum import Enum
 
+import h5py
 import idyntree.swig as idyn
 import numpy as np
 from PyQt5.QtCore import QMutex, QMutexLocker, QThread, pyqtSignal
@@ -197,7 +198,7 @@ class SignalProvider(QThread):
                     pass
             self.index = 0
 
-        self.provider_type = provider_type
+        self.provider_type = ProviderType.OFFLINE
 
     @abc.abstractmethod
     def open(self, source: str) -> bool:
@@ -275,8 +276,17 @@ class SignalProvider(QThread):
 
     def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
         data, timestamps = self.get_item_from_path(path, default_path)
-        if data is None:
+        if (
+            data is None
+            or timestamps is None
+            or len(self.timestamps) == 0
+            or len(timestamps) == 0
+        ):
             return None
+
+        if self.timestamps is None or len(self.timestamps) == 0:
+            return None
+
         closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
 
         if neighbor == 0:
@@ -304,6 +314,9 @@ class SignalProvider(QThread):
             self._robot_state_path.base_orientation_path, index
         )
         self.robot_state_path_lock.unlock()
+
+        if robot_state["joints_position"] is None:
+            robot_state["joints_position"] = np.zeros(len(self.joints_name))
 
         if robot_state["base_position"] is None:
             robot_state["base_position"] = np.zeros(3)

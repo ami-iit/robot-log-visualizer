@@ -102,11 +102,20 @@ class RealtimeSignalProvider(SignalProvider):
         self.data = DequeToNumpyLeaf()
         self._timestamps = deque()
 
-        self.selected_signals = set()  # Track signals to buffer
+        # Track signals to buffer
+        self.buffered_signals = set()
+        # Always include joints_state
+        self.buffered_signals.add("robot_realtime::joints_state::positions")
 
-    def set_selected_signals(self, signals):
-        """Update the set of signals to buffer (called by the plotter)."""
-        self.selected_signals = set(signals)
+    # TODO: implement a logic to remove signals that are not needed anymore
+    def add_signals_to_buffer(self, signals: list | set | str):
+        """Add signals to the buffer set."""
+        if isinstance(signals, str):
+            signals = {signals}
+        print(f"==== Adding signals to buffer: {signals} ====")
+        self.buffered_signals.update(signals)
+        # Always include joints_state
+        self.buffered_signals.add("robot_realtime::joints_state::positions")
 
     def __len__(self):
         return len(self._timestamps)
@@ -222,6 +231,15 @@ class RealtimeSignalProvider(SignalProvider):
     def timestamps(self):
         return np.array(self._timestamps)
 
+    @property
+    def index(self):
+        self.index_lock.lock()
+        try:
+            # Always return the latest index for real-time mode
+            return len(self._timestamps) - 1 if len(self._timestamps) > 0 else 0
+        finally:
+            self.index_lock.unlock()
+
     def run(self):
         """
         This is the periodic thread that reads data from the remote realtime logger.
@@ -262,7 +280,7 @@ class RealtimeSignalProvider(SignalProvider):
 
                         # Check if any selected signal starts with this path
                         match = any(
-                            sel.startswith(key_string) for sel in self.selected_signals
+                            sel.startswith(key_string) for sel in self.buffered_signals
                         )
                         if not match:
                             continue
@@ -272,7 +290,6 @@ class RealtimeSignalProvider(SignalProvider):
                             self.data, keys, value, recent_timestamp
                         )
 
-                    self._index = len(self._timestamps) - 1
                     self.index_lock.unlock()
 
                 # Signal that new data are available.

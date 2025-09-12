@@ -943,6 +943,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                     self.robot_state_path.base_position_path
                 ).setBackground(0, QtGui.QBrush(deselected_base_color))
             self.robot_state_path.base_position_path = item_path
+            # In real time mode, add those signal to the provider buffer
+            if (
+                self.signal_provider
+                and self.signal_provider.provider_type == ProviderType.REALTIME
+            ):
+                # Convert item_path to signal name string
+                signal_name = "robot_realtime::" + "::".join(item_path)
+                self.signal_provider.add_signals_to_buffer([signal_name])
 
         if use_as_base_orientation_str in action.text():
             # if base orientation is already set we remove the color
@@ -951,6 +959,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                     self.robot_state_path.base_orientation_path
                 ).setBackground(0, QtGui.QBrush(deselected_base_color))
             self.robot_state_path.base_orientation_path = item_path
+            # In real time mode, add those signal to the provider buffer
+            if (
+                self.signal_provider
+                and self.signal_provider.provider_type == ProviderType.REALTIME
+            ):
+                signal_name = "robot_realtime::" + "::".join(item_path)
+                self.signal_provider.add_signals_to_buffer([signal_name])
 
         if action.text() == dont_use_as_base_position_str:
             self.robot_state_path.base_position_path = []

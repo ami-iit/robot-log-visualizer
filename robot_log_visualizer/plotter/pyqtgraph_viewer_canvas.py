@@ -97,7 +97,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         # For real-time provider, update the set of selected signals to buffer
         if self._signal_provider.provider_type == ProviderType.REALTIME:
             selected_keys = ["::".join(path) for path in paths]
-            self._signal_provider.set_selected_signals(selected_keys)
+            self._signal_provider.add_signals_to_buffer(selected_keys)
 
         self._add_missing_curves(paths, legends)
         self._remove_obsolete_curves(paths)
@@ -108,16 +108,14 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             self._plot.setXRange(-self._signal_provider.realtime_fixed_plot_window, 0.0)
             # Disable mouse panning on x axis
             self._plot.plotItem.vb.setMouseEnabled(x=False, y=True)
+            # For real-time data enable autoscaling of Y axis
+            self._plot.plotItem.vb.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
         else:
             # Default behavior
             self._plot.setXRange(
                 0.0,
                 self._signal_provider.end_time - self._signal_provider.initial_time,
             )
-
-        # For real-time data enable autoscaling of Y axis
-        if self._signal_provider.provider_type == ProviderType.REALTIME:
-            self._plot.plotItem.vb.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
 
     # The following trio is wired to whoever controls the replay/stream
     def pause_animation(self) -> None:  # noqa: D401

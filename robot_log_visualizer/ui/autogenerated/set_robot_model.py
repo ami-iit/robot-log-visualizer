@@ -64,25 +64,19 @@ class Ui_setRobotModelDialog(object):
         self.frameNameComboBox = QtWidgets.QComboBox(self.frame_3)
         self.frameNameComboBox.setMaxVisibleItems(5)
         self.frameNameComboBox.setObjectName("frameNameComboBox")
-        self.formLayout_2.setWidget(
-            0, QtWidgets.QFormLayout.FieldRole, self.frameNameComboBox
-        )
+        self.formLayout_2.setWidget(0, QtWidgets.QFormLayout.FieldRole, self.frameNameComboBox)
         self.formLayout.setWidget(2, QtWidgets.QFormLayout.SpanningRole, self.frame_3)
         self.buttonBox = QtWidgets.QDialogButtonBox(setRobotModelDialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(
-            QtWidgets.QDialogButtonBox.Abort | QtWidgets.QDialogButtonBox.Save
-        )
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Abort|QtWidgets.QDialogButtonBox.Save)
         self.buttonBox.setObjectName("buttonBox")
         self.formLayout.setWidget(4, QtWidgets.QFormLayout.SpanningRole, self.buttonBox)
-        spacerItem = QtWidgets.QSpacerItem(
-            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
-        )
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.formLayout.setItem(3, QtWidgets.QFormLayout.FieldRole, spacerItem)
 
         self.retranslateUi(setRobotModelDialog)
-        self.buttonBox.accepted.connect(setRobotModelDialog.accept)  # type: ignore
-        self.buttonBox.rejected.connect(setRobotModelDialog.reject)  # type: ignore
+        self.buttonBox.accepted.connect(setRobotModelDialog.accept) # type: ignore
+        self.buttonBox.rejected.connect(setRobotModelDialog.reject) # type: ignore
         QtCore.QMetaObject.connectSlotsByName(setRobotModelDialog)
 
     def retranslateUi(self, setRobotModelDialog):

@@ -248,7 +248,7 @@
             </attribute>
             <layout class="QHBoxLayout" name="horizontalLayout">
              <item>
-              <widget class="QWebEngineView" name="meshcatView" native="true">
+              <widget class="QWebEngineView" name="meshcatView">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
                  <horstretch>1</horstretch>
@@ -554,7 +554,7 @@
   </action>
   <action name="actionSet_Robot_Model">
    <property name="text">
-    <string>Set Robot Model</string>
+    <string>Options</string>
    </property>
   </action>
   <action name="actionRealtime_Connect">

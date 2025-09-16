@@ -78,6 +78,16 @@ class SetRobotModelDialog(QtWidgets.QDialog):
         self.ui.robotModelToolButton.clicked.connect(self.open_urdf_file)
         self.ui.packageDirToolButton.clicked.connect(self.open_package_directory)
 
+        # Force the arrowScaling_lineEdit to be a positive float
+        self.ui.arrowScaling_lineEdit.setValidator(QtGui.QDoubleValidator(0, 100, 2))
+
+        # connect the arrowScaling_checkBox to the handle_arrow_scaling method
+        self.ui.arrowScaling_checkBox.toggled.connect(self.handle_arrow_scaling)
+
+        self.clicked_button = None
+        self.std_button = None
+        self.ui.buttonBox.clicked.connect(self.buttonBox_on_click)
+
         if dataset_loaded:
             frames = meshcat_provider.robot_frames()
             self.ui.frameNameComboBox.addItems(frames)
@@ -100,6 +110,33 @@ class SetRobotModelDialog(QtWidgets.QDialog):
 
     def get_package_directory(self):
         return self.ui.packageDirLineEdit.text()
+
+    def buttonBox_on_click(self, button):
+        self.clicked_button = button
+
+        self.std_button = self.ui.buttonBox.standardButton(button)
+
+    def get_clicked_button_role(self):
+        if self.clicked_button is not None:
+            return self.ui.buttonBox.buttonRole(self.clicked_button)
+        return None
+
+    def get_clicked_button_text(self):
+        if self.clicked_button is not None:
+            return self.clicked_button.text()
+        return None
+
+    def get_clicked_standard_button(self):
+        return self.std_button
+
+    def handle_arrow_scaling(self):
+        # if arrowScaling_checkBox is checked the lineEdit must be disabled else it must be enabled
+        if self.ui.arrowScaling_checkBox.isChecked():
+            self.ui.arrowScaling_lineEdit.setText("")
+            self.ui.arrowScaling_lineEdit.setEnabled(False)
+        else:
+            self.ui.arrowScaling_lineEdit.setText("")
+            self.ui.arrowScaling_lineEdit.setEnabled(True)
 
 
 class About(QtWidgets.QMainWindow):
@@ -185,6 +222,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.video_items = []
         self.visualized_3d_points = set()
         self.visualized_3d_trajectories = set()
+        self.visualized_3d_arrows = set()
         self.visualized_3d_points_colors_palette = ColorPalette()
 
         self.toolButton_on_click()
@@ -777,9 +815,47 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         )
         outcome = dlg.exec()
         if outcome == QDialog.Accepted:
-            if not self.dataset_loaded:
-                self.meshcat_provider.model_path = dlg.get_urdf_path()
-                self.meshcat_provider.custom_package_dir = dlg.get_package_directory()
+
+            # check which button was clicked
+            button_role = dlg.get_clicked_button_role()
+            button_text = dlg.get_clicked_button_text()
+            std_button = dlg.get_clicked_standard_button()
+
+            if std_button == QtWidgets.QDialogButtonBox.SaveAll:
+                if not self.dataset_loaded:
+                    self.meshcat_provider.model_path = dlg.get_urdf_path()
+                    self.meshcat_provider.custom_package_dir = (
+                        dlg.get_package_directory()
+                    )
+
+                arrow_scaling_value = dlg.ui.arrowScaling_lineEdit.text()
+                if not arrow_scaling_value:
+                    arrow_scaling_value = "1.0"
+                else:
+                    arrow_scaling_value = float(arrow_scaling_value)
+                self.signal_provider.set_custom_max_arrow(
+                    not dlg.ui.arrowScaling_checkBox.isChecked(), arrow_scaling_value
+                )
+            if std_button == QtWidgets.QDialogButtonBox.Save:
+                # we need to check which tab is selected in the dlg
+                if dlg.ui.tabWidget.currentIndex() == 0:
+                    if not self.dataset_loaded:
+                        self.meshcat_provider.model_path = dlg.get_urdf_path()
+                        self.meshcat_provider.custom_package_dir = (
+                            dlg.get_package_directory()
+                        )
+                else:
+                    arrow_scaling_value = dlg.ui.arrowScaling_lineEdit.text()
+                    # if it is empty we set it to 1.0
+                    if not arrow_scaling_value:
+                        arrow_scaling_value = "1.0"
+                    else:
+                        arrow_scaling_value = float(arrow_scaling_value)
+                    self.signal_provider.set_custom_max_arrow(
+                        not dlg.ui.arrowScaling_checkBox.isChecked(),
+                        arrow_scaling_value,
+                    )
+
             else:
                 self.meshcat_provider.load_model(
                     self.signal_provider.joints_name,
@@ -839,8 +915,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         add_3d_point_str = "Show as a 3D point"
         add_3d_trajectory_str = "Show as a 3D trajectory"
+        add_3d_arrow_str = "Show as a 3D arrow"
         remove_3d_point_str = "Remove the 3D point"
         remove_3d_trajectory_str = "Remove the 3D trajectory"
+        remove_3d_arrow_str = "Remove the 3D arrow"
         use_as_base_position_str = "Use as base position"
         use_as_base_orientation_str = "Use as base orientation"
         dont_use_as_base_position_str = "Don't use as base position"
@@ -892,6 +970,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             else:
                 menu.addAction(use_as_base_orientation_str + " (xyzw Quaternion)")
 
+        if item_size == 6:
+            if item_key in self.visualized_3d_arrows:
+                menu.addAction(remove_3d_arrow_str)
+            else:
+                menu.addAction(add_3d_arrow_str)
+
         # show the menu
         action = menu.exec_(self.ui.variableTreeWidget.mapToGlobal(item_position))
         if action is None:
@@ -899,7 +983,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         item_path = self.get_item_path(item)
 
-        if action.text() == add_3d_point_str or action.text() == add_3d_trajectory_str:
+        if (
+            action.text() == add_3d_point_str
+            or action.text() == add_3d_trajectory_str
+            or action.text() == add_3d_arrow_str
+        ):
             color = next(self.visualized_3d_points_colors_palette)
 
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(color.as_hex())))
@@ -910,12 +998,20 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
                 self.signal_provider.register_3d_point(item_key, item_path)
                 self.visualized_3d_points.add(item_key)
-            else:
+            elif action.text() == add_3d_trajectory_str:
                 self.meshcat_provider.register_3d_trajectory(
                     item_key, list(color.as_normalized_rgb())
                 )
                 self.signal_provider.register_3d_trajectory(item_key, item_path)
                 self.visualized_3d_trajectories.add(item_key)
+            elif action.text() == add_3d_arrow_str:
+                self.meshcat_provider.register_3d_arrow(
+                    item_key, list(color.as_normalized_rgb())
+                )
+                self.signal_provider.register_3d_arrow(item_key, item_path)
+                self.visualized_3d_arrows.add(item_key)
+            else:
+                raise ValueError("Unknown action")
 
         if action.text() == remove_3d_point_str:
             self.meshcat_provider.unregister_3d_point(item_key)
@@ -927,6 +1023,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.meshcat_provider.unregister_3d_trajectory(item_key)
             self.signal_provider.unregister_3d_trajectory(item_key)
             self.visualized_3d_trajectories.remove(item_key)
+            item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+
+        if action.text() == remove_3d_arrow_str:
+            self.meshcat_provider.unregister_3d_arrow(item_key)
+            self.signal_provider.unregister_3d_arrow(item_key)
+            self.visualized_3d_arrows.remove(item_key)
             item.setForeground(0, QtGui.QBrush(QtGui.QColor(0, 0, 0)))
 
         if (

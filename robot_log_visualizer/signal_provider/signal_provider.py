@@ -73,7 +73,6 @@ class SignalProvider(QThread):
         self.period = period
 
         self.data = {}
-        # self.timestamps = np.array([])
         self.text_logging_data = {}
 
         self.initial_time = math.inf

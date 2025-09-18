@@ -2,13 +2,22 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-import time
+import abc
 import math
+from enum import Enum
+
 import h5py
-import numpy as np
-from PyQt5.QtCore import pyqtSignal, QThread, QMutex, QMutexLocker
-from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 import idyntree.swig as idyn
+import numpy as np
+from PyQt5.QtCore import QMutex, QMutexLocker, QThread, pyqtSignal
+
+from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
+
+
+class ProviderType(Enum):
+    OFFLINE = 0
+    REALTIME = 1
+    NOT_DEFINED = 2
 
 
 class TextLoggingMsg:
@@ -32,7 +41,9 @@ class TextLoggingMsg:
 class SignalProvider(QThread):
     update_index_signal = pyqtSignal()
 
-    def __init__(self, period: float):
+    def __init__(
+        self, period: float, signal_root_name: str, provider_type: ProviderType
+    ):
         QThread.__init__(self)
 
         # set device state
@@ -62,7 +73,6 @@ class SignalProvider(QThread):
         self.period = period
 
         self.data = {}
-        self.timestamps = np.array([])
         self.text_logging_data = {}
 
         self.initial_time = math.inf
@@ -71,11 +81,13 @@ class SignalProvider(QThread):
         self.joints_name = []
         self.robot_name = ""
 
-        self.root_name = "robot_logger_device"
+        self.root_name = signal_root_name
 
         self._current_time = 0
 
         self.trajectory_span = 200
+
+        self.provider_type = provider_type
 
     def __populate_text_logging_data(self, file_object):
         data = {}
@@ -193,8 +205,15 @@ class SignalProvider(QThread):
                     pass
             self.index = 0
 
+        self.provider_type = ProviderType.OFFLINE
+
+    @abc.abstractmethod
+    def open(self, source: str) -> bool:
+        return False
+
+    @abc.abstractmethod
     def __len__(self):
-        return self.timestamps.shape[0]
+        pass
 
     @property
     def state(self):
@@ -272,8 +291,17 @@ class SignalProvider(QThread):
 
     def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
         data, timestamps = self.get_item_from_path(path, default_path)
-        if data is None:
+        if (
+            data is None
+            or timestamps is None
+            or len(self.timestamps) == 0
+            or len(timestamps) == 0
+        ):
             return None
+
+        if self.timestamps is None or len(self.timestamps) == 0:
+            return None
+
         closest_index = np.argmin(np.abs(timestamps - self.timestamps[index]))
 
         if neighbor == 0:
@@ -301,6 +329,9 @@ class SignalProvider(QThread):
             self._robot_state_path.base_orientation_path, index
         )
         self.robot_state_path_lock.unlock()
+
+        if robot_state["joints_position"] is None:
+            robot_state["joints_position"] = np.zeros(len(self.joints_name))
 
         if robot_state["base_position"] is None:
             robot_state["base_position"] = np.zeros(3)
@@ -426,35 +457,6 @@ class SignalProvider(QThread):
         del self._3d_trajectories_path[key]
         self._3d_trajectories_path_lock.unlock()
 
+    @abc.abstractmethod
     def run(self):
-        while True:
-            start = time.time()
-            if self.state == PeriodicThreadState.running:
-                self.index_lock.lock()
-                tmp_index = self._index
-                self._current_time += self.period
-                self._current_time = min(
-                    self._current_time, self.timestamps[-1] - self.initial_time
-                )
-
-                # find the index associated to the current time in self.timestamps
-                # this is valid since self.timestamps is sorted and self._current_time is increasing
-                while (
-                    self._current_time > self.timestamps[tmp_index] - self.initial_time
-                ):
-                    tmp_index += 1
-                    if tmp_index > len(self.timestamps):
-                        break
-
-                self._index = tmp_index
-
-                self.index_lock.unlock()
-
-                self.update_index_signal.emit()
-
-            sleep_time = self.period - (time.time() - start)
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-
-            if self.state == PeriodicThreadState.closed:
-                return
+        return

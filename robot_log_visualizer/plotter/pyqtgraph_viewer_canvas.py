@@ -4,13 +4,14 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple, Sequence, Iterable
+from typing import Dict, Iterable, Sequence, Tuple
 
-from PyQt5 import QtCore, QtWidgets  # type: ignore
-import pyqtgraph as pg  # type: ignore
 import numpy as np
+import pyqtgraph as pg  # type: ignore
+from PyQt5 import QtCore, QtWidgets  # type: ignore
 
 from robot_log_visualizer.plotter.color_palette import ColorPalette
+from robot_log_visualizer.signal_provider.signal_provider import ProviderType
 
 # ------------------------------------------------------------------------
 # Type aliases
@@ -31,7 +32,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
     def __init__(
         self,
         parent: QtWidgets.QWidget | None,
-        signal_provider,
         period: float,
         *,
         click_radius: float | None = None,
@@ -41,8 +41,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
 
         Args:
             parent: Parent widget or *None*.
-            signal_provider: Object exposing ``data``, ``initial_time``,
-                ``end_time`` and a **dynamic** ``current_time`` attribute.
             period: Update period for the vertical line (seconds).
             click_radius: Override :pyattr:`DEFAULT_RADIUS`.
             marker_size: Override :pyattr:`DEFAULT_MARKER_SIZE`.
@@ -50,7 +48,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         super().__init__(parent)
 
         # injected dependencies
-        self._signal_provider = signal_provider
+        self._signal_provider = None
         self._period_ms: int = int(period * 1000)
         self._click_radius: float = click_radius or self.DEFAULT_RADIUS
         self._marker_size: int = marker_size or self.DEFAULT_MARKER_SIZE
@@ -66,21 +64,58 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         self._connect_signals()
 
     # -------------------------------------------------------------#
-    # Public API (called from the outside)                                  #
+    # Public API (called from the outside)                         #
     # -------------------------------------------------------------#
+
+    def set_signal_provider(self, signal_provider) -> None:
+        """Set the signal provider to fetch data from.
+
+        Args:
+            signal_provider: An instance of `SignalProvider`.
+        """
+
+        if signal_provider is None:
+            return
+
+        self._signal_provider = signal_provider
+
+        # Connect to real-time updates for real-time provider
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            self._signal_provider.update_index_signal.connect(
+                self._update_realtime_curves
+            )
+
     def update_plots(self, paths: Sequence[Path], legends: Sequence[Legend]) -> None:
         """Synchronise plots with the *paths* list.
 
         New items are added, disappeared items removed. Existing ones are
         left untouched to avoid flicker.
         """
+        if self._signal_provider is None:
+            return
+
+        # For real-time provider, update the set of selected signals to buffer
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            selected_keys = ["::".join(path) for path in paths]
+            self._signal_provider.add_signals_to_buffer(selected_keys)
+
         self._add_missing_curves(paths, legends)
         self._remove_obsolete_curves(paths)
-        # Always show the full time span
-        self._plot.setXRange(
-            0.0,
-            self._signal_provider.end_time - self._signal_provider.initial_time,
-        )
+
+        # Set the X axis range based on the provider type
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
+            # For real-time data, show a fixed window with 0 set at the right edge for the latest data
+            self._plot.setXRange(-self._signal_provider.realtime_fixed_plot_window, 0.0)
+            # Disable mouse panning on x axis
+            self._plot.plotItem.vb.setMouseEnabled(x=False, y=True)
+            # For real-time data enable autoscaling of Y axis
+            self._plot.plotItem.vb.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
+        else:
+            # Default behavior
+            self._plot.setXRange(
+                0.0,
+                self._signal_provider.end_time - self._signal_provider.initial_time,
+            )
 
     # The following trio is wired to whoever controls the replay/stream
     def pause_animation(self) -> None:  # noqa: D401
@@ -173,7 +208,31 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
 
     def _update_vline(self) -> None:
         """Move the vertical line to ``current_time``."""
+        if self._signal_provider is None:
+            return
+
         self._vline.setValue(self._signal_provider.current_time)
+
+    def _update_realtime_curves(self):
+        """Update all curves with the latest data from the signal provider."""
+
+        if self._signal_provider is None:
+            return
+        for key, curve in self._curves.items():
+            # Drill down to the data array using the path
+            path = key.split("/")
+            data = self._signal_provider.data
+            for subkey in path[:-1]:
+                data = data[subkey]
+            try:
+                y = data["data"][:, int(path[-1])]
+            except (IndexError, ValueError):
+                y = data["data"][:]
+
+            # Set the 0 of the x axis to the latest timestamp
+            latest_time = data["timestamps"][-1] if len(data["timestamps"]) > 0 else 0
+            x = data["timestamps"] - latest_time
+            curve.setData(x, y)
 
     def _on_mouse_click(self, event) -> None:  # noqa: N802
         """Handle a left‑click: select or unselect the nearest data point."""

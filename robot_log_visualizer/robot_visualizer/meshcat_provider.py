@@ -2,23 +2,21 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-from PyQt5.QtCore import QThread, QMutex, QMutexLocker
-
 import os
 import re
+import time
 from pathlib import Path
 
-import numpy as np
-import time
-
 import idyntree.swig as idyn
+import numpy as np
 from idyntree.visualize import MeshcatVisualizer
+from PyQt5.QtCore import QMutex, QMutexLocker, QThread
 
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
 
 class MeshcatProvider(QThread):
-    def __init__(self, signal_provider, period):
+    def __init__(self, period):
         QThread.__init__(self)
 
         self._state = PeriodicThreadState.pause
@@ -29,12 +27,17 @@ class MeshcatProvider(QThread):
         self.meshcat_visualizer_mutex = QMutex()
 
         self._is_model_loaded = False
-        self._signal_provider = signal_provider
+        self._signal_provider = None
 
         self.model_path = ""
         self.custom_package_dir = ""
         self.base_frame = ""
-        self.env_list = ["GAZEBO_MODEL_PATH", "ROS_PACKAGE_PATH", "AMENT_PREFIX_PATH"]
+        self.env_list = [
+            "GAZEBO_MODEL_PATH",
+            "GZ_SIM_RESOURCE_PATH",
+            "ROS_PACKAGE_PATH",
+            "AMENT_PREFIX_PATH",
+        ]
         self._registered_3d_points = set()
         self._registered_3d_trajectories = dict()
         self._register_3d_arrow = set()
@@ -86,6 +89,9 @@ class MeshcatProvider(QThread):
         locker = QMutexLocker(self.meshcat_visualizer_mutex)
         self._register_3d_arrow.remove(arrow_path)
         self._meshcat_visualizer.delete(shape_name=arrow_path)
+
+    def set_signal_provider(self, signal_provider):
+        self._signal_provider = signal_provider
 
     def load_model(self, considered_joints, model_name, base_frame=None):
         def get_model_path_from_envs(env_list):
@@ -148,7 +154,7 @@ class MeshcatProvider(QThread):
                     model_filenames = [
                         folder_model_path / Path(f)
                         for f in os.listdir(folder_model_path.absolute())
-                        if re.search("[a-zA-Z0-9_]*\.urdf", f)
+                        if re.search(r"[a-zA-Z0-9_]*\.urdf", f)
                     ]
 
                     if model_filenames:
@@ -158,6 +164,9 @@ class MeshcatProvider(QThread):
 
             # If the model is not found we exit
             if not model_found_in_env_folders:
+                print(
+                    f"MeshcatProvider: Unable to find the model {model_name} in the environment folders."
+                )
                 return False
 
             self.model_joints_index = find_model_joints(
@@ -234,6 +243,9 @@ class MeshcatProvider(QThread):
 
             index = self._signal_provider.index
             if self.state == PeriodicThreadState.running and self._is_model_loaded:
+                if len(self._signal_provider) == 0:
+                    time.sleep(self._period)
+                    continue
                 robot_state = self._signal_provider.get_robot_state_at_index(index)
                 self.meshcat_visualizer_mutex.lock()
                 # These are the robot measured joint positions in radians

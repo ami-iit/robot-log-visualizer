@@ -14,10 +14,17 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QLineEdit,
     QDialogButtonBox,
-    QTableWidgetItem,
 )
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
+from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
+from robot_log_visualizer.signal_provider.realtime_signal_provider import (
+    RealtimeSignalProvider,
+    are_deps_installed,
+)
+from robot_log_visualizer.signal_provider.matfile_signal_provider import (
+    MatfileSignalProvider,
+)
 
+from robot_log_visualizer.signal_provider.signal_provider import SignalProvider
 from robot_log_visualizer.ui.plot_item import PlotItem
 from robot_log_visualizer.ui.video_item import VideoItem
 from robot_log_visualizer.ui.text_logging import TextLoggingItem
@@ -26,7 +33,6 @@ from robot_log_visualizer.utils.utils import (
     PeriodicThreadState,
     RobotStatePath,
     ColorPalette,
-    Color,
 )
 
 import sys
@@ -47,6 +53,7 @@ from time import localtime, strftime
 # Matplotlib class
 from pyqtconsole.console import PythonConsole
 import pyqtconsole.highlighter as hl
+
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -165,9 +172,17 @@ def get_icon(icon_name):
 
 
 class RobotViewerMainWindow(QtWidgets.QMainWindow):
-    def __init__(self, signal_provider, meshcat_provider, animation_period):
+    def __init__(self, signal_provider_period, meshcat_provider, animation_period):
         # call QMainWindow constructor
         super().__init__()
+
+        self.signal_provider_period = signal_provider_period
+
+        # for realtime logging
+        self.realtimePlotUpdaterThreadActive = False
+        self.plotData = {}
+        self.realtime_connection_enabled = False
+        self.timeoutAttempts = 20
 
         self.animation_period = animation_period
 
@@ -194,11 +209,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.about = About()
 
-        self.signal_provider = signal_provider
-        self.signal_size = len(self.signal_provider)
-        self.signal_provider.register_update_index(self.update_index)
+        self.signal_provider: SignalProvider = None
 
-        self.meshcat_provider = meshcat_provider
+        self.meshcat_provider: MeshcatProvider = meshcat_provider
 
         self.tool_button = QToolButton()
         self.tool_button.setText("+")
@@ -229,6 +242,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # connect action
         self.ui.actionQuit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.open_mat_file)
+
+        if are_deps_installed():
+            self.ui.actionRealtime_Connect.triggered.connect(
+                self.connect_realtime_logger
+            )
+        else:
+            self.ui.actionRealtime_Connect.setEnabled(False)
+
         self.ui.actionAbout.triggered.connect(self.open_about)
         self.ui.actionSet_Robot_Model.triggered.connect(self.open_set_robot_model)
 
@@ -355,11 +376,9 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 else:
                     self.ui.pauseButton.click()
 
-
     def toolButton_on_click(self):
-        self.plot_items.append(
-            PlotItem(signal_provider=self.signal_provider, period=self.animation_period)
-        )
+        self.plot_items.append(PlotItem(period=self.animation_period))
+        self.plot_items[-1].set_signal_provider(self.signal_provider)
         self.ui.tabPlotWidget.addTab(self.plot_items[-1], "Plot")
 
         if self.ui.tabPlotWidget.count() == 1:
@@ -407,7 +426,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.startButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(True)
         self.signal_provider.state = PeriodicThreadState.running
-        # self.meshcat_provider.state = PeriodicThreadState.running
+        self.meshcat_provider.state = PeriodicThreadState.running
 
         self.logger.write_to_log("Dataset started.")
 
@@ -420,17 +439,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 video_item.media_player.pause()
 
         self.signal_provider.state = PeriodicThreadState.pause
-        # self.meshcat_provider.state = PeriodicThreadState.pause
+        self.meshcat_provider.state = PeriodicThreadState.pause
 
         self.logger.write_to_log("Dataset paused.")
 
     def plotTabCloseButton_on_click(self, index):
-        self.ui.tabPlotWidget.removeTab(index)
         self.plot_items[index].canvas.quit_animation()
         del self.plot_items[index]
-
         if self.ui.tabPlotWidget.count() == 1:
             self.ui.tabPlotWidget.setTabsClosable(False)
+        self.ui.tabPlotWidget.removeTab(index)
 
     def plotTabBar_on_doubleClick(self, index):
         dlg, plot_title = build_plot_title_box_dialog()
@@ -462,6 +480,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         # if there is no selection we do nothing
         if not paths:
             return
+
+        self.plotData[self.ui.tabPlotWidget.currentIndex()] = {
+            "paths": paths,
+            "legends": legends,
+        }
 
         self.plot_items[self.ui.tabPlotWidget.currentIndex()].canvas.update_plots(
             paths, legends
@@ -538,7 +561,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         # clear the selection to prepare a new one
         self.ui.variableTreeWidget.clearSelection()
-        for active_path_str in self.plot_items[index].canvas.active_paths.keys():
+        for active_path_str in self.plot_items[index].canvas._curves.keys():
             path = active_path_str.split("/")
 
             # select the item in the tree from the path
@@ -584,10 +607,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.state = PeriodicThreadState.closed
         self.meshcat_provider.wait()
 
-        self.signal_provider.state = PeriodicThreadState.closed
-        self.signal_provider.wait()
+        if self.signal_provider is not None:
+            self.signal_provider.state = PeriodicThreadState.closed
+            self.signal_provider.wait()
 
         event.accept()
+        if self.realtime_connection_enabled:
+            self.realtime_connection_enabled = False
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):
@@ -633,10 +659,20 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         return parent
 
     def __load_mat_file(self, file_name):
-        self.signal_provider.open_mat_file(file_name)
+        self.signal_provider = MatfileSignalProvider(
+            self.signal_provider_period, "robot_logger_device"
+        )
+        self.signal_provider.open(file_name)
         self.signal_size = len(self.signal_provider)
+        self.signal_provider.start()
 
-        # load the model
+        self.signal_provider.register_update_index(self.update_index)
+
+        # add signal provider to the plot items
+        self.plot_items[-1].set_signal_provider(self.signal_provider)
+
+        # load the model and load the provider
+        self.meshcat_provider.set_signal_provider(self.signal_provider)
         if not self.meshcat_provider.load_model(
             self.signal_provider.joints_name, self.signal_provider.robot_name
         ):
@@ -648,6 +684,8 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 msg = msg + self.signal_provider.robot_name
 
             self.logger.write_to_log(msg)
+
+        self.meshcat_provider.start()
 
         # populate tree
         root = list(self.signal_provider.data.keys())[0]
@@ -682,7 +720,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         video_filenames = [
             str(pathlib.Path(file_name).parent.absolute() / pathlib.Path(f))
             for f in os.listdir(pathlib.Path(file_name).parent.absolute())
-            if re.search(prefix + "_[a-zA-Z0-9_]*\.mp4$", f)
+            if re.search(prefix + r"_[a-zA-Z0-9_]*\.mp4$", f)
         ]
 
         # for every video we create a video item and we append it to the tab
@@ -701,6 +739,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 video_item.media_player.pause()
 
         self.meshcat_provider.state = PeriodicThreadState.running
+        self.ui.actionRealtime_Connect.setEnabled(False)
 
         self.dataset_loaded = True
 
@@ -716,6 +755,54 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         )
         if file_name:
             self.__load_mat_file(file_name)
+            return True
+        return False
+
+    def connect_realtime_logger(self):
+        self.signal_provider = RealtimeSignalProvider(
+            self.signal_provider_period, "robot_realtime"
+        )
+        self.realtime_connection_enabled = True
+
+        # Do initial connection to populate the necessary data
+        if not self.signal_provider.open("/yarp-robot-logger/rt_logging"):
+            self.logger.write_to_log("Could not connect to the real-time logger.")
+            self.realtime_connection_enabled = False
+            self.signal_provider = None
+            return
+        # only display one root in the gui
+        root = list(self.signal_provider.data.keys())[0]
+        root_item = QTreeWidgetItem([root])
+        root_item.setFlags(root_item.flags() & ~Qt.ItemIsSelectable)
+        items = self.__populate_variable_tree_widget(
+            self.signal_provider.data[root], root_item
+        )
+        self.ui.variableTreeWidget.insertTopLevelItems(0, [items])
+
+        if not self.meshcat_provider.load_model(
+            self.signal_provider.joints_name, self.signal_provider.robot_name
+        ):
+            # if not loaded we print an error but we continue
+            msg = "Unable to load the model: "
+            if self.meshcat_provider.model_path:
+                msg = msg + self.meshcat_provider.model_path
+            else:
+                msg = msg + self.signal_provider.robot_name
+
+            self.logger.write_to_log(msg)
+
+        # Disable these buttons for RT communication
+        self.ui.startButton.setEnabled(False)
+        self.ui.timeSlider.setEnabled(False)
+
+        # start the threads accordingly
+        self.signal_provider.state = PeriodicThreadState.running
+        self.signal_provider.start()
+        self.meshcat_provider.set_signal_provider(self.signal_provider)
+        self.meshcat_provider.state = PeriodicThreadState.running
+        self.meshcat_provider.start()
+        for plot in self.plot_items:
+            plot.set_signal_provider(self.signal_provider)
 
     def open_about(self):
         self.about.show()
@@ -958,6 +1045,14 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                     self.robot_state_path.base_position_path
                 ).setBackground(0, QtGui.QBrush(deselected_base_color))
             self.robot_state_path.base_position_path = item_path
+            # In real time mode, add those signal to the provider buffer
+            if (
+                self.signal_provider
+                and self.signal_provider.provider_type == ProviderType.REALTIME
+            ):
+                # Convert item_path to signal name string
+                signal_name = "robot_realtime::" + "::".join(item_path)
+                self.signal_provider.add_signals_to_buffer([signal_name])
 
         if use_as_base_orientation_str in action.text():
             # if base orientation is already set we remove the color
@@ -966,6 +1061,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                     self.robot_state_path.base_orientation_path
                 ).setBackground(0, QtGui.QBrush(deselected_base_color))
             self.robot_state_path.base_orientation_path = item_path
+            # In real time mode, add those signal to the provider buffer
+            if (
+                self.signal_provider
+                and self.signal_provider.provider_type == ProviderType.REALTIME
+            ):
+                signal_name = "robot_realtime::" + "::".join(item_path)
+                self.signal_provider.add_signals_to_buffer([signal_name])
 
         if action.text() == dont_use_as_base_position_str:
             self.robot_state_path.base_position_path = []

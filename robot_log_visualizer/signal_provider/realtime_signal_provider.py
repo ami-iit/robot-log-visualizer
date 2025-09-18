@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Istituto Italiano di Tecnologia (IIT). All rights reserved.
+# Copyright (C) 2025 Istituto Italiano di Tecnologia (IIT). All rights reserved.
 # This software may be modified and distributed under the terms of the
 # BSD 3-Clause License
 

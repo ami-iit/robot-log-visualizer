@@ -5,6 +5,7 @@
 import time
 import traceback
 from collections import deque
+from typing import Iterable, Union
 
 import numpy as np
 
@@ -117,7 +118,7 @@ class RealtimeSignalProvider(SignalProvider):
         self.buffered_signals.add("robot_realtime::joints_state::positions")
 
     # TODO: implement a logic to remove signals that are not needed anymore
-    def add_signals_to_buffer(self, signals: list | set | str):
+    def add_signals_to_buffer(self, signals: Union[str, Iterable[str]]):
         """Add signals to the buffer set."""
         if isinstance(signals, str):
             signals = {signals}

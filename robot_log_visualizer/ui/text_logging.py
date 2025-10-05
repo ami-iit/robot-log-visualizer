@@ -1,9 +1,6 @@
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (
-    QTableWidgetItem,
-)
-
-from PyQt5.QtGui import QColor, QBrush
+from PyQt6 import QtWidgets
+from PyQt6.QtGui import QColor, QBrush
+from PyQt6.QtWidgets import QTableWidgetItem
 
 
 class TextLoggingItem:
@@ -35,7 +32,9 @@ class TextLoggingItem:
         self.table_widget.resizeColumnToContents(1)
         self.table_widget.clear()
         header = self.table_widget.horizontalHeader()
-        header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+        )
         self.index_coloured_cell = None
 
     def highlight_cell(self, index):

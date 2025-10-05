@@ -9,7 +9,7 @@ from enum import Enum
 import h5py
 import idyntree.swig as idyn
 import numpy as np
-from PyQt5.QtCore import QMutex, QMutexLocker, QThread, pyqtSignal
+from PyQt6.QtCore import QMutex, QMutexLocker, QThread, pyqtSignal
 
 from robot_log_visualizer.utils.utils import PeriodicThreadState, RobotStatePath
 

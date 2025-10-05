@@ -7,8 +7,8 @@
 import sys
 
 # GUI
+from qtpy.QtWidgets import QApplication
 from robot_log_visualizer.ui.gui import RobotViewerMainWindow
-from PyQt5.QtWidgets import QApplication
 
 # Meshcat
 from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
@@ -36,7 +36,11 @@ def main():
     # show the main window
     gui.show()
 
-    return app.exec_()
+    exec_method = getattr(app, "exec", None)
+    if exec_method is None:
+        exec_method = app.exec_
+
+    return exec_method()
 
 
 if __name__ == "__main__":

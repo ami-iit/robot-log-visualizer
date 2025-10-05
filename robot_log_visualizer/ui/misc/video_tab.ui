@@ -21,9 +21,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QVideoWidget</class>
-   <extends>QWidget</extends>
-   <header>PyQt5.QtMultimediaWidgets</header>
+    <class>QVideoWidget</class>
+    <extends>QWidget</extends>
+    <header>qtpy.QtMultimediaWidgets</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

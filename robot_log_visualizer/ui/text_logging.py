@@ -1,9 +1,6 @@
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (
-    QTableWidgetItem,
-)
-
-from PyQt5.QtGui import QColor, QBrush
+from qtpy import QtWidgets
+from qtpy.QtGui import QColor, QBrush
+from qtpy.QtWidgets import QTableWidgetItem
 
 
 class TextLoggingItem:

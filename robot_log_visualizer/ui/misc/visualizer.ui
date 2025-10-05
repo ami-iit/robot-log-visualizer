@@ -570,7 +570,7 @@
   <customwidget>
    <class>QWebEngineView</class>
    <extends>QWidget</extends>
-   <header location="global">QtWebEngineWidgets/QWebEngineView</header>
+   <header location="global">qtpy.QtWebEngineWidgets</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

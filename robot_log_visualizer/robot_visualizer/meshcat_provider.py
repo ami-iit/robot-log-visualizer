@@ -10,7 +10,7 @@ from pathlib import Path
 import idyntree.swig as idyn
 import numpy as np
 from idyntree.visualize import MeshcatVisualizer
-from PyQt6.QtCore import QMutex, QMutexLocker, QThread
+from qtpy.QtCore import QMutex, QMutexLocker, QThread
 
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 

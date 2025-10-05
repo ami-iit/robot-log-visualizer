@@ -35,7 +35,7 @@ jobs:
       - name: Dependencies [Ubuntu]
         run: |
           sudo apt update
-          sudo apt install -y pyqt6-dev-tools
+          sudo apt install -y pyside6-tools
       - name: Generate python files
         run: |
           bash ./generate-ui.sh

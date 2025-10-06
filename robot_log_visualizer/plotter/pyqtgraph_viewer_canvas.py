@@ -10,7 +10,7 @@ import numpy as np
 import pyqtgraph as pg  # type: ignore
 from qtpy import QtCore, QtWidgets  # type: ignore
 
-from robot_log_visualizer.plotter.color_palette import ColorPalette
+from robot_log_visualizer.utils.utils import ColorPalette
 from robot_log_visualizer.signal_provider.signal_provider import ProviderType
 
 # ------------------------------------------------------------------------
@@ -190,7 +190,8 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 y = data["data"][:]
 
             x = data["timestamps"] - self._signal_provider.initial_time
-            pen = pg.mkPen(next(self._palette), width=2)
+            palette_color = next(self._palette)
+            pen = pg.mkPen(palette_color.as_hex(), width=2)
 
             self._curves[key] = self._plot.plot(
                 x,

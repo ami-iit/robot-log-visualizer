@@ -58,7 +58,6 @@ from pyqtconsole.console import PythonConsole
 import pyqtconsole.highlighter as hl
 
 
-
 class SetRobotModelDialog(QtWidgets.QDialog):
     def __init__(self, meshcat_provider, parent=None, dataset_loaded=False):
         # call QMainWindow constructor
@@ -599,21 +598,52 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 )
 
     def closeEvent(self, event):
-        # close the window
+        # ensure update callbacks are not triggered while tearing down the UI
+        if self.signal_provider is not None:
+            try:
+                self.signal_provider.update_index_signal.disconnect(self.update_index)
+            except (TypeError, RuntimeError):
+                # ignore if already disconnected
+                pass
+
+        # stop timers/animations before widgets disappear
+        for plot_item in self.plot_items:
+            plot_item.canvas.quit_animation()
+
+        # stop the embedded Python console (it owns a QThread)
         self.pyconsole.close()
-        for video_item in self.video_items:
-            del video_item.media_player
 
-        self.meshcat_provider.state = PeriodicThreadState.closed
-        self.meshcat_provider.wait()
-
+        # gracefully stop worker threads before deleting widgets they use
         if self.signal_provider is not None:
             self.signal_provider.state = PeriodicThreadState.closed
             self.signal_provider.wait()
+            self.signal_provider = None
 
-        event.accept()
+        # Stop the meshcat_provider if exists
+        if self.meshcat_provider is not None:
+            self.meshcat_provider.state = PeriodicThreadState.closed
+            self.meshcat_provider.wait()
+
+        # release multimedia resources explicitly to avoid late callbacks
+        # while closing
+        for video_item in self.video_items:
+            media_player = getattr(video_item, "media_player", None)
+            if media_player is not None:
+                if video_item.media_loaded:
+                    media_player.stop()
+                try:
+                    media_player.setVideoOutput(None)
+                except Exception:
+                    pass
+                media_player.deleteLater()
+            video_item.deleteLater()
+        self.video_items.clear()
+
+        # Disable realtime connection
         if self.realtime_connection_enabled:
             self.realtime_connection_enabled = False
+
+        event.accept()
 
     def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
         if not isinstance(obj, dict):

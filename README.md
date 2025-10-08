@@ -55,6 +55,25 @@ Once you have installed the `robot-log-visualizer` you can run it from the termi
 You can navigate the dataset thanks to the slider or by pressing `Ctrl-f` and `Ctrl-b` to move
 forward and backward.
 
+To pre-load a dataset on startup, pass it as an argument:
+
+```bash
+robot-log-visualizer /path/to/dataset.mat
+```
+
+If you saved a snapshot of your favourite layout, you can restore it right away:
+
+```bash
+robot-log-visualizer --snapshot /path/to/view.json
+```
+
+You can also combine both parameters; in that case the dataset argument is loaded first and then
+the snapshot is applied:
+
+```bash
+robot-log-visualizer /path/to/dataset.mat --snapshot /path/to/view.json
+```
+
 > [!IMPORTANT]
 > `robot-log-visualizer` only supports reading `.mat` file [version 7.3 or newer](https://www.mathworks.com/help/matlab/import_export/mat-file-versions.html).
 

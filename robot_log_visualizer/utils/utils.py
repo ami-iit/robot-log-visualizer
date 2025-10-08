@@ -41,8 +41,7 @@ class Color:
         hex_value = hex_value.lstrip("#")
         hlen = len(hex_value)
         return tuple(
-            int(hex_value[i : i + hlen // 3], 16)
-            for i in range(0, hlen, hlen // 3)
+            int(hex_value[i : i + hlen // 3], 16) for i in range(0, hlen, hlen // 3)
         )
 
     @staticmethod

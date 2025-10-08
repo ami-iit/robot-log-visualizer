@@ -4,7 +4,10 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
+import argparse
+import pathlib
 import sys
+from typing import Optional, Sequence
 
 # GUI
 from qtpy.QtWidgets import QApplication
@@ -14,7 +17,28 @@ from robot_log_visualizer.ui.gui import RobotViewerMainWindow
 from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
 
 
-def main():
+def _parse_arguments(argv: Sequence[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Robot Log Visualizer",
+    )
+    parser.add_argument(
+        "dataset",
+        nargs="?",
+        help="Path to a MAT dataset to load on startup.",
+    )
+    parser.add_argument(
+        "-s",
+        "--snapshot",
+        help="Path to a view snapshot (.json) to restore on startup.",
+    )
+
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[Sequence[str]] = None):
+    parsed_argv = list(argv) if argv is not None else sys.argv[1:]
+    args = _parse_arguments(parsed_argv)
+
     thread_periods = {
         "meshcat_provider": 0.03,
         "signal_provider": 0.03,
@@ -35,6 +59,16 @@ def main():
 
     # show the main window
     gui.show()
+
+    if args.dataset:
+        dataset_path = pathlib.Path(args.dataset).expanduser()
+        if not gui._load_mat_file(str(dataset_path), quiet=False):  # noqa: SLF001
+            print(f"Failed to load dataset '{dataset_path}'.", file=sys.stderr)
+
+    if args.snapshot:
+        snapshot_path = pathlib.Path(args.snapshot).expanduser()
+        if not gui.load_view_snapshot_from_path(snapshot_path):
+            print(f"Failed to load snapshot '{snapshot_path}'.", file=sys.stderr)
 
     exec_method = getattr(app, "exec", None)
     if exec_method is None:

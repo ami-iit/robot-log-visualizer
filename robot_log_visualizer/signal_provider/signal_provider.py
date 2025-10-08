@@ -421,6 +421,18 @@ class SignalProvider(QThread):
 
         return trajectories
 
+    def export_registered_3d_points(self):
+        locker = QMutexLocker(self._3d_points_path_lock)
+        return {key: list(value) for key, value in self._3d_points_path.items()}
+
+    def export_registered_3d_trajectories(self):
+        locker = QMutexLocker(self._3d_trajectories_path_lock)
+        return {key: list(value) for key, value in self._3d_trajectories_path.items()}
+
+    def export_registered_3d_arrows(self):
+        locker = QMutexLocker(self._3d_arrows_path_lock)
+        return {key: list(value) for key, value in self._3d_arrows.items()}
+
     def register_3d_point(self, key, points_path):
         self._3d_points_path_lock.lock()
         self._3d_points_path[key] = points_path

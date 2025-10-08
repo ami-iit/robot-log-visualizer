@@ -4,6 +4,7 @@
 
 from qtpy.QtCore import QUrl
 from qtpy.QtMultimedia import QMediaPlayer
+
 try:  # Qt 6
     from qtpy.QtMultimedia import QAudioOutput  # type: ignore
 except ImportError:  # Qt 5 fallback

@@ -503,6 +503,8 @@
      <string>&amp;File</string>
     </property>
     <addaction name="actionOpen"/>
+      <addaction name="actionSave_View"/>
+      <addaction name="actionLoad_View"/>
     <addaction name="actionRealtime_Connect"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
@@ -565,6 +567,22 @@
     <string>Ctrl+R</string>
    </property>
   </action>
+    <action name="actionSave_View">
+     <property name="text">
+      <string>Save View…</string>
+     </property>
+     <property name="shortcut">
+      <string>Ctrl+Shift+S</string>
+     </property>
+    </action>
+    <action name="actionLoad_View">
+     <property name="text">
+      <string>Load View…</string>
+     </property>
+     <property name="shortcut">
+      <string>Ctrl+Shift+O</string>
+     </property>
+    </action>
  </widget>
  <customwidgets>
   <customwidget>

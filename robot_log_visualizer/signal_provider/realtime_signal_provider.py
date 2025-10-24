@@ -10,11 +10,10 @@ from typing import Iterable, Union
 import numpy as np
 
 from robot_log_visualizer.signal_provider.signal_provider import (
-    ProviderType,
-    SignalProvider,
-)
+    ProviderType, SignalProvider)
 from robot_log_visualizer.utils.utils import PeriodicThreadState
 
+ROBOT_REALTIME_KEY = "robot_realtime"
 
 def are_deps_installed():
     try:
@@ -115,7 +114,7 @@ class RealtimeSignalProvider(SignalProvider):
         # Track signals to buffer
         self.buffered_signals = set()
         # Always include joints_state
-        self.buffered_signals.add("robot_realtime::joints_state::positions")
+        self.buffered_signals.add(f"{ROBOT_REALTIME_KEY}::joints_state::positions")
 
     # TODO: implement a logic to remove signals that are not needed anymore
     def add_signals_to_buffer(self, signals: Union[str, Iterable[str]]):
@@ -124,7 +123,7 @@ class RealtimeSignalProvider(SignalProvider):
             signals = {signals}
         self.buffered_signals.update(signals)
         # Always include joints_state
-        self.buffered_signals.add("robot_realtime::joints_state::positions")
+        self.buffered_signals.add(f"{ROBOT_REALTIME_KEY}::joints_state::positions")
         print(f"=== Buffered signals updated: {self.buffered_signals} ===")
 
     def __len__(self):
@@ -279,10 +278,12 @@ class RealtimeSignalProvider(SignalProvider):
                 return False
 
             self.realtime_network_init = True
-            self.joints_name = self.rt_metadata_dict["robot_realtime::description_list"]
-            self.robot_name = self.rt_metadata_dict["robot_realtime::yarp_robot_name"][
-                0
+            self.joints_name = self.rt_metadata_dict[
+                f"{ROBOT_REALTIME_KEY}::description_list"
             ]
+            self.robot_name = self.rt_metadata_dict[
+                f"{ROBOT_REALTIME_KEY}::yarp_robot_name"
+            ][0]
 
             # Populate metadata into self.data recursively.
             for key_string, value in self.rt_metadata_dict.items():
@@ -351,7 +352,7 @@ class RealtimeSignalProvider(SignalProvider):
 
                     self.index_lock.lock()
                     # Retrieve the most recent timestamp from the input.
-                    recent_timestamp = vc_input["robot_realtime::timestamps"][0]
+                    recent_timestamp = vc_input[f"{ROBOT_REALTIME_KEY}::timestamps"][0]
                     self._timestamps.append(recent_timestamp)
                     # Keep the global timestamps within the fixed plot window.
                     while self._timestamps and (
@@ -368,7 +369,7 @@ class RealtimeSignalProvider(SignalProvider):
                     # For signal selected from the user that is in the received data (except timestamps),
                     # update the appropriate buffer.
                     for key_string, value in vc_input.items():
-                        if key_string == "robot_realtime::timestamps":
+                        if key_string == f"{ROBOT_REALTIME_KEY}::timestamps":
                             continue
 
                         if "alpha" in key_string:

@@ -28,7 +28,7 @@ from robot_log_visualizer.robot_visualizer.meshcat_provider import \
 from robot_log_visualizer.signal_provider.matfile_signal_provider import \
     MatfileSignalProvider
 from robot_log_visualizer.signal_provider.realtime_signal_provider import (
-    RealtimeSignalProvider, are_deps_installed)
+    ROBOT_REALTIME_KEY, RealtimeSignalProvider, are_deps_installed)
 from robot_log_visualizer.signal_provider.signal_provider import (
     ProviderType, SignalProvider)
 from robot_log_visualizer.ui.plot_item import PlotItem
@@ -39,9 +39,6 @@ from robot_log_visualizer.ui.video_item import VideoItem
 from robot_log_visualizer.utils.utils import (ColorPalette,
                                               PeriodicThreadState,
                                               RobotStatePath)
-
-# for logging
-
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -798,7 +795,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def connect_realtime_logger(self):
         self.signal_provider = RealtimeSignalProvider(
-            self.signal_provider_period, "robot_realtime"
+            self.signal_provider_period, ROBOT_REALTIME_KEY
         )
         self.realtime_connection_enabled = True
 
@@ -1100,7 +1097,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 and self.signal_provider.provider_type == ProviderType.REALTIME
             ):
                 # Convert item_path to signal name string
-                signal_name = "robot_realtime::" + "::".join(item_path)
+                signal_name = f"{ROBOT_REALTIME_KEY}::" + "::".join(item_path)
                 self.signal_provider.add_signals_to_buffer([signal_name])
 
         if use_as_base_orientation_str in action.text():
@@ -1115,7 +1112,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.signal_provider
                 and self.signal_provider.provider_type == ProviderType.REALTIME
             ):
-                signal_name = "robot_realtime::" + "::".join(item_path)
+                signal_name = f"{ROBOT_REALTIME_KEY}::" + "::".join(item_path)
                 self.signal_provider.add_signals_to_buffer([signal_name])
 
         if action.text() == dont_use_as_base_position_str:
@@ -1227,31 +1224,33 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         existing_md.update(new_items)
         provider.rt_metadata_dict = existing_md
 
-        if "robot_realtime::description_list" in new_items:
-            provider.joints_name = existing_md["robot_realtime::description_list"]
-        if "robot_realtime::yarp_robot_name" in new_items:
-            names = existing_md.get("robot_realtime::yarp_robot_name", [])
+        desc_key = f"{ROBOT_REALTIME_KEY}::description_list"
+        yarp_name_key = f"{ROBOT_REALTIME_KEY}::yarp_robot_name"
+        if desc_key in new_items:
+            provider.joints_name = existing_md[desc_key]
+        if yarp_name_key in new_items:
+            names = existing_md.get(yarp_name_key, [])
             if names:
                 provider.robot_name = names[0]
 
         subtree = self._build_subtree_from_flat(new_items)
 
-        # Treat the top-level item as the "robot_realtime" node
+        # Treat the top-level item as the robot_realtime node
         root_item = self.ui.variableTreeWidget.topLevelItem(0)
-        if root_item is None or root_item.text(0) != "robot_realtime":
+        if root_item is None or root_item.text(0) != ROBOT_REALTIME_KEY:
             self.logger.write_to_log(
-                "Refresh metadata: 'robot_realtime' node not found, cannot insert."
+                f"Refresh metadata: '{ROBOT_REALTIME_KEY}' node not found, cannot insert."
             )
             return
 
         populate_fn = provider._populate_realtime_logger_metadata
 
-        # Merge the children of the new subtree into the existing "robot_realtime" node
+        # Merge the children of the new subtree into the existing robot_realtime node
         with QMutexLocker(provider.index_lock):
-            for key, value in subtree.get("robot_realtime", {}).items():
+            for key, value in subtree.get(ROBOT_REALTIME_KEY, {}).items():
                 self._batch_insert_tree(
                     {key: value},
-                    provider.data["robot_realtime"],
+                    provider.data[ROBOT_REALTIME_KEY],
                     root_item,
                     provider,
                     populate_fn,

@@ -2,60 +2,46 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-# QtPy abstraction
-from qtpy import QtWidgets, QtGui, QtCore
-from qtpy import QtWebEngineWidgets  # noqa: F401  # Ensure WebEngine is initialised
-from qtpy.QtCore import QMutex, QMutexLocker, QUrl, Qt, Slot
-from qtpy.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
-    QFileDialog,
-    QLineEdit,
-    QToolButton,
-    QTreeWidgetItem,
-    QVBoxLayout,
-)
-
-pyqtSlot = Slot
-from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
-from robot_log_visualizer.signal_provider.realtime_signal_provider import (
-    RealtimeSignalProvider,
-    are_deps_installed,
-)
-from robot_log_visualizer.signal_provider.matfile_signal_provider import (
-    MatfileSignalProvider,
-)
-
-from robot_log_visualizer.signal_provider.signal_provider import (
-    ProviderType,
-    SignalProvider,
-)
-from robot_log_visualizer.ui.plot_item import PlotItem
-from robot_log_visualizer.ui.video_item import VideoItem
-from robot_log_visualizer.ui.text_logging import TextLoggingItem
-
-from robot_log_visualizer.utils.utils import (
-    PeriodicThreadState,
-    RobotStatePath,
-    ColorPalette,
-)
-
-import sys
 import os
 import pathlib
 import re
-
-import numpy as np
-
-# QtDesigner generated classes
-from robot_log_visualizer.ui.ui_loader import load_ui
-
+import sys
 # for logging
 from time import localtime, strftime
 
+import numpy as np
+import pyqtconsole.highlighter as hl
+# QtPy abstraction
+from qtpy import \
+    QtWebEngineWidgets  # noqa: F401  # Ensure WebEngine is initialised
+from qtpy import QtGui, QtWidgets
+from qtpy.QtCore import QMutex, QMutexLocker, Qt, QUrl, Slot
+from qtpy.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QLineEdit,
+                            QToolButton, QTreeWidgetItem, QVBoxLayout)
+
+pyqtSlot = Slot
 # Matplotlib class
 from pyqtconsole.console import PythonConsole
-import pyqtconsole.highlighter as hl
+
+from robot_log_visualizer.robot_visualizer.meshcat_provider import \
+    MeshcatProvider
+from robot_log_visualizer.signal_provider.matfile_signal_provider import \
+    MatfileSignalProvider
+from robot_log_visualizer.signal_provider.realtime_signal_provider import (
+    RealtimeSignalProvider, are_deps_installed)
+from robot_log_visualizer.signal_provider.signal_provider import (
+    ProviderType, SignalProvider)
+from robot_log_visualizer.ui.plot_item import PlotItem
+from robot_log_visualizer.ui.text_logging import TextLoggingItem
+# QtDesigner generated classes
+from robot_log_visualizer.ui.ui_loader import load_ui
+from robot_log_visualizer.ui.video_item import VideoItem
+from robot_log_visualizer.utils.utils import (ColorPalette,
+                                              PeriodicThreadState,
+                                              RobotStatePath)
+
+# for logging
+
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -258,6 +244,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.ui.pauseButton.clicked.connect(self.pauseButton_on_click)
         self.ui.startButton.clicked.connect(self.startButton_on_click)
+        self.ui.refreshButton.clicked.connect(self.refreshButton_on_click)
+
+        # by default the refresh button is only relevant for realtime connections
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
         self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
@@ -461,6 +454,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             path = []
             legend = []
             is_leaf = True
+            self.logger.write_to_log(f"Selected index data: {index.data()}")
             while index.data() is not None:
                 legend.append(index.data())
                 if not is_leaf:
@@ -475,6 +469,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
+
+        # Debug logs
+        self.logger.write_to_log(f"Selected paths: {paths}")
+        self.logger.write_to_log(f"Selected legends: {legends}")
 
         # if there is no selection we do nothing
         if not paths:
@@ -617,6 +615,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if self.signal_provider is not None:
             self.signal_provider.state = PeriodicThreadState.closed
             self.signal_provider.wait()
+        # hide/disable refresh on close
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
             self.signal_provider = None
 
         # Stop the meshcat_provider if exists
@@ -742,6 +745,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.timeSlider.setMaximum(self.signal_size)
         self.ui.startButton.setEnabled(True)
         self.ui.timeSlider.setEnabled(True)
+        # loading a MAT file: refresh is not relevant
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
 
         # get all the video associated to the datase
         filename_without_path = pathlib.Path(file_name).name
@@ -799,6 +807,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.logger.write_to_log("Could not connect to the real-time logger.")
             self.realtime_connection_enabled = False
             self.signal_provider = None
+            # failed to connect: ensure refresh is disabled
+            try:
+                self.ui.refreshButton.setEnabled(False)
+            except Exception:
+                pass
             return
         # only display one root in the gui
         root = list(self.signal_provider.data.keys())[0]
@@ -833,6 +846,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.start()
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)
+
+        # enable refresh when realtime connected
+        try:
+            self.ui.refreshButton.setEnabled(True)
+        except Exception:
+            pass
 
     def open_about(self):
         self.about.show()
@@ -1131,6 +1150,116 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item = item.parent()
         path.reverse()
         return path
+
+    def _build_subtree_from_flat(self, flat_dict):
+        """Build a nested dictionary (tree) from a flat dictionary with '::' separated keys."""
+        tree = {}
+        for flat_key, value in flat_dict.items():
+            keys = flat_key.split("::")
+            node = tree
+            for k in keys[:-1]:
+                node = node.setdefault(k, {})
+            node[keys[-1]] = value
+        return tree
+
+    def _batch_insert_tree(
+        self, subtree, provider_data, parent_item, provider, populate_fn
+    ):
+        """Recursively insert new metadata into the tree and update the provider data."""
+        for key, value in subtree.items():
+            # Find or create the QTreeWidgetItem
+            child_item = None
+            for i in range(parent_item.childCount()):
+                if parent_item.child(i).text(0) == key:
+                    child_item = parent_item.child(i)
+                    break
+            if child_item is None:
+                child_item = QTreeWidgetItem([key])
+                child_item.setFlags(child_item.flags() | Qt.ItemIsSelectable)
+                parent_item.addChild(child_item)
+                self.logger.write_to_log(f"Added new tree item: {key}")
+
+            # Recurse or insert leaf
+            if isinstance(value, dict):
+                # Ensure provider_data has this branch
+                if key not in provider_data:
+                    provider_data[key] = {}
+                self._batch_insert_tree(
+                    value, provider_data[key], child_item, provider, populate_fn
+                )
+            else:
+                # At leaf: call provider's populate function
+                keys = self.get_item_path(child_item)
+                populate_fn(provider_data, keys, value)
+
+    def refreshButton_on_click(self):
+        """Fetch fresh realtime metadata, add only new keys, and extend the tree."""
+
+        provider = self.signal_provider
+        if not isinstance(provider, RealtimeSignalProvider):
+            self.logger.write_to_log(
+                "Refresh metadata: realtime provider not connected."
+            )
+            return
+
+        client = provider.vector_collections_client
+        if client is None:
+            self.logger.write_to_log("Refresh metadata: realtime client unavailable.")
+            return
+
+        self.logger.write_to_log("Refreshing metadata from realtime logger...")
+        try:
+            updated_md = client.get_metadata().vectors
+        except Exception as exc:
+            self.logger.write_to_log(f"Error fetching metadata: {exc}")
+            return
+
+        existing_md = provider.rt_metadata_dict or {}
+        new_items = {k: v for k, v in updated_md.items() if k not in existing_md}
+
+        self.logger.write_to_log(f"Existing metadata keys: {list(existing_md.keys())}")
+        self.logger.write_to_log(f"Updated metadata keys: {list(updated_md.keys())}")
+        self.logger.write_to_log(f"New metadata keys: {list(new_items.keys())}")
+        if not new_items:
+            self.logger.write_to_log("Metadata refreshed: no new keys found.")
+            return
+
+        existing_md.update(new_items)
+        provider.rt_metadata_dict = existing_md
+
+        if "robot_realtime::description_list" in new_items:
+            provider.joints_name = existing_md["robot_realtime::description_list"]
+        if "robot_realtime::yarp_robot_name" in new_items:
+            names = existing_md.get("robot_realtime::yarp_robot_name", [])
+            if names:
+                provider.robot_name = names[0]
+
+        subtree = self._build_subtree_from_flat(new_items)
+
+        # Treat the top-level item as the "robot_realtime" node
+        root_item = self.ui.variableTreeWidget.topLevelItem(0)
+        if root_item is None or root_item.text(0) != "robot_realtime":
+            self.logger.write_to_log(
+                "Refresh metadata: 'robot_realtime' node not found, cannot insert."
+            )
+            return
+
+        populate_fn = provider._populate_realtime_logger_metadata
+
+        # Merge the children of the new subtree into the existing "robot_realtime" node
+        with QMutexLocker(provider.index_lock):
+            for key, value in subtree.get("robot_realtime", {}).items():
+                self._batch_insert_tree(
+                    {key: value},
+                    provider.data["robot_realtime"],
+                    root_item,
+                    provider,
+                    populate_fn,
+                )
+
+        self.logger.write_to_log(
+            f"Metadata refreshed: {len(new_items)} new key(s) merged."
+        )
 
 
 class Logger:

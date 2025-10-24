@@ -125,6 +125,7 @@ class RealtimeSignalProvider(SignalProvider):
         self.buffered_signals.update(signals)
         # Always include joints_state
         self.buffered_signals.add("robot_realtime::joints_state::positions")
+        print(f"=== Buffered signals updated: {self.buffered_signals} ===")
 
     def __len__(self):
         """
@@ -171,26 +172,80 @@ class RealtimeSignalProvider(SignalProvider):
     def _populate_realtime_logger_metadata(self, raw_data: dict, keys: list, value):
         """
         Recursively populate metadata into raw_data.
-        Here we simply store metadata (e.g. elements names) into a list.
+
+        - Creates only missing nested nodes.
+        - At a leaf: initialize buffers if missing and merge elements_names
+          (do not overwrite existing elements_names).
+        - Returns True if the call created or extended metadata for the given path,
+          False otherwise.
         """
+
+        if not isinstance(keys, list) or not keys:
+            raise ValueError(
+                f"Invalid keys parameter: {keys}. Expected a non-empty list."
+            )
+        if not all(isinstance(k, str) for k in keys):
+            raise ValueError(
+                f"Invalid keys elements: {keys}. All elements must be strings."
+            )
+
+        if not isinstance(raw_data, (dict, DequeToNumpyLeaf)):
+            raise ValueError(
+                f"Invalid raw_data parameter: {raw_data}. Expected a dictionary-like object."
+            )
+
+        if not isinstance(value, (list, tuple, str, int, float)):
+            raise ValueError(
+                f"Invalid value parameter: {value}. Expected a list, tuple, or scalar."
+            )
+
         if keys[0] == "timestamps":
-            return
+            return False
+
+        # ensure node exists
         if keys[0] not in raw_data:
             raw_data[keys[0]] = DequeToNumpyLeaf()
-        if len(keys) == 1:
-            if not value:
-                if keys[0] in raw_data:
-                    del raw_data[keys[0]]
-                return
-            if "elements_names" not in raw_data[keys[0]]:
-                raw_data[keys[0]]["elements_names"] = []
-                # Also create empty buffers (which will later be updated in run())
-                raw_data[keys[0]]["data"] = deque()
-                raw_data[keys[0]]["timestamps"] = deque()
-
-            raw_data[keys[0]]["elements_names"] = value
+            created = True
         else:
-            self._populate_realtime_logger_metadata(raw_data[keys[0]], keys[1:], value)
+            created = False
+
+        if len(keys) == 1:
+            # leaf
+            if not value:
+                # do not delete existing node on empty value; just no-op
+                print(f"=== Skipping empty value for key: {keys[0]} ===")
+                return created
+
+            node = raw_data[keys[0]]
+
+            # initialize leaf buffers if missing
+            if "elements_names" not in node:
+                node["elements_names"] = (
+                    list(value) if isinstance(value, (list, tuple)) else value
+                )
+                node["data"] = deque()
+                node["timestamps"] = deque()
+                print(f"=== Created leaf node for key: {keys[0]} ===")
+                return True
+
+            # merge element names (append only new entries)
+            if isinstance(node["elements_names"], list) and isinstance(
+                value, (list, tuple)
+            ):
+                added = False
+                for v in value:
+                    if v not in node["elements_names"]:
+                        node["elements_names"].append(v)
+                        added = True
+                return added or created
+
+            # fallback: if elements_names is not a list, don't overwrite
+            return created
+        else:
+            # recurse into the subtree
+            return self._populate_realtime_logger_metadata(
+                raw_data[keys[0]], keys[1:], value
+            )
 
     def open(self, source: str) -> bool:
         """
@@ -293,6 +348,7 @@ class RealtimeSignalProvider(SignalProvider):
                 vc_input = self.vector_collections_client.read_data(True).vectors
 
                 if vc_input:
+
                     self.index_lock.lock()
                     # Retrieve the most recent timestamp from the input.
                     recent_timestamp = vc_input["robot_realtime::timestamps"][0]
@@ -314,6 +370,9 @@ class RealtimeSignalProvider(SignalProvider):
                     for key_string, value in vc_input.items():
                         if key_string == "robot_realtime::timestamps":
                             continue
+
+                        if "alpha" in key_string:
+                            print(f"controllerdata alpha gravity value: {value}")
 
                         # Check if any selected signal starts with this path
                         match = any(

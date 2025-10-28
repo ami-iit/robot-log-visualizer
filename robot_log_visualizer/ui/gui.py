@@ -645,7 +645,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         event.accept()
 
-    def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
+    def __populate_variable_tree_widget(
+        self, obj: dict, parent: QTreeWidgetItem
+    ) -> QTreeWidgetItem:
+
         if not isinstance(obj, dict):
             return parent
         if "data" in obj.keys() and "timestamps" in obj.keys():
@@ -671,6 +674,49 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item = self.__populate_variable_tree_widget(value, item)
             item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
             parent.addChild(item)
+        return parent
+
+    def _update_variable_tree_widget(
+        self, obj: dict, parent: QTreeWidgetItem
+    ) -> QTreeWidgetItem:
+        """
+        Recursively merge new metadata into the variable tree widget.
+        Only checks for existing items at non-leaf nodes.
+        At leaf nodes, always adds all children.
+        """
+        if not isinstance(obj, dict):
+            return parent
+
+        if "data" in obj.keys() and "timestamps" in obj.keys():
+            temp_array = obj["data"]
+            try:
+                n_cols = temp_array.shape[1]
+            except Exception:
+                n_cols = 1
+
+            # Always add all children at leaf level
+            if "elements_names" in obj.keys():
+                for name in obj["elements_names"]:
+                    item = QTreeWidgetItem([name])
+                    parent.addChild(item)
+            else:
+                for i in range(n_cols):
+                    item = QTreeWidgetItem(["Element " + str(i)])
+                    parent.addChild(item)
+            return parent
+
+        for key, value in obj.items():
+            # Only check for existing child at non-leaf nodes
+            child_item = None
+            for i in range(parent.childCount()):
+                if parent.child(i).text(0) == key:
+                    child_item = parent.child(i)
+                    break
+            if child_item is None:
+                child_item = QTreeWidgetItem([key])
+                child_item.setFlags(child_item.flags() & ~Qt.ItemIsSelectable)
+                parent.addChild(child_item)
+                self._update_variable_tree_widget(value, child_item)
         return parent
 
     def __populate_text_logging_tree_widget(self, obj, parent) -> QTreeWidgetItem:
@@ -1148,92 +1194,22 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         path.reverse()
         return path
 
-    def _build_subtree_from_flat(self, flat_dict):
-        """Build a nested dictionary (tree) from a flat dictionary with '::' separated keys."""
-        tree = {}
-        for flat_key, value in flat_dict.items():
-            keys = flat_key.split("::")
-            node = tree
-            for k in keys[:-1]:
-                node = node.setdefault(k, {})
-            node[keys[-1]] = value
-        return tree
-
-    def _batch_insert_tree(
-        self, subtree, provider_data, parent_item, provider, populate_fn
-    ):
-        """Recursively insert new metadata into the tree and update the provider data."""
-        for key, value in subtree.items():
-            # Find or create the QTreeWidgetItem
-            child_item = None
-            for i in range(parent_item.childCount()):
-                if parent_item.child(i).text(0) == key:
-                    child_item = parent_item.child(i)
-                    break
-            if child_item is None:
-                child_item = QTreeWidgetItem([key])
-                child_item.setFlags(child_item.flags() | Qt.ItemIsSelectable)
-                parent_item.addChild(child_item)
-                self.logger.write_to_log(f"Added new tree item: {key}")
-
-            # Recurse or insert leaf
-            if isinstance(value, dict):
-                # Ensure provider_data has this branch
-                if key not in provider_data:
-                    provider_data[key] = {}
-                self._batch_insert_tree(
-                    value, provider_data[key], child_item, provider, populate_fn
-                )
-            else:
-                # At leaf: call provider's populate function
-                keys = self.get_item_path(child_item)
-                populate_fn(provider_data, keys, value)
-
     def refreshButton_on_click(self):
         """Fetch fresh realtime metadata, add only new keys, and extend the tree."""
 
-        provider = self.signal_provider
+        provider: RealtimeSignalProvider = self.signal_provider
         if not isinstance(provider, RealtimeSignalProvider):
             self.logger.write_to_log(
                 "Refresh metadata: realtime provider not connected."
             )
             return
 
-        client = provider.vector_collections_client
-        if client is None:
-            self.logger.write_to_log("Refresh metadata: realtime client unavailable.")
-            return
-
-        self.logger.write_to_log("Refreshing metadata from realtime logger...")
-        try:
-            updated_md = client.get_metadata().vectors
-        except Exception as exc:
-            self.logger.write_to_log(f"Error fetching metadata: {exc}")
-            return
-
-        existing_md = provider.rt_metadata_dict or {}
-        new_items = {k: v for k, v in updated_md.items() if k not in existing_md}
-
-        self.logger.write_to_log(f"Existing metadata keys: {list(existing_md.keys())}")
-        self.logger.write_to_log(f"Updated metadata keys: {list(updated_md.keys())}")
-        self.logger.write_to_log(f"New metadata keys: {list(new_items.keys())}")
+        new_items = provider.update_metadata()
         if not new_items:
-            self.logger.write_to_log("Metadata refreshed: no new keys found.")
+            self.logger.write_to_log("Refresh metadata: no new metadata keys found.")
             return
 
-        existing_md.update(new_items)
-        provider.rt_metadata_dict = existing_md
-
-        desc_key = f"{ROBOT_REALTIME_KEY}::description_list"
-        yarp_name_key = f"{ROBOT_REALTIME_KEY}::yarp_robot_name"
-        if desc_key in new_items:
-            provider.joints_name = existing_md[desc_key]
-        if yarp_name_key in new_items:
-            names = existing_md.get(yarp_name_key, [])
-            if names:
-                provider.robot_name = names[0]
-
-        subtree = self._build_subtree_from_flat(new_items)
+        self.logger.write_to_log(f"New metadata keys found: {list(new_items.keys())}")
 
         # Treat the top-level item as the robot_realtime node
         root_item = self.ui.variableTreeWidget.topLevelItem(0)
@@ -1243,22 +1219,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        populate_fn = provider._populate_realtime_logger_metadata
-
         # Merge the children of the new subtree into the existing robot_realtime node
         with QMutexLocker(provider.index_lock):
-            for key, value in subtree.get(ROBOT_REALTIME_KEY, {}).items():
-                self._batch_insert_tree(
-                    {key: value},
-                    provider.data[ROBOT_REALTIME_KEY],
-                    root_item,
-                    provider,
-                    populate_fn,
-                )
-
-        self.logger.write_to_log(
-            f"Metadata refreshed: {len(new_items)} new key(s) merged."
-        )
+            self._update_variable_tree_widget(
+                provider.data[ROBOT_REALTIME_KEY], root_item
+            )
 
 
 class Logger:

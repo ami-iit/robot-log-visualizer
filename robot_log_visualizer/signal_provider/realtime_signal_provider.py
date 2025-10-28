@@ -124,7 +124,6 @@ class RealtimeSignalProvider(SignalProvider):
         self.buffered_signals.update(signals)
         # Always include joints_state
         self.buffered_signals.add(f"{ROBOT_REALTIME_KEY}::joints_state::positions")
-        print(f"=== Buffered signals updated: {self.buffered_signals} ===")
 
     def __len__(self):
         """
@@ -144,6 +143,9 @@ class RealtimeSignalProvider(SignalProvider):
           - raw_data[key]["timestamps"]
         Any sample older than the fixed time window is removed.
         """
+
+        if not keys:
+            return
 
         if keys[0] not in raw_data:
             raw_data[keys[0]] = DequeToNumpyLeaf()
@@ -212,7 +214,6 @@ class RealtimeSignalProvider(SignalProvider):
             # leaf
             if not value:
                 # do not delete existing node on empty value; just no-op
-                print(f"=== Skipping empty value for key: {keys[0]} ===")
                 return created
 
             node = raw_data[keys[0]]
@@ -224,7 +225,6 @@ class RealtimeSignalProvider(SignalProvider):
                 )
                 node["data"] = deque()
                 node["timestamps"] = deque()
-                print(f"=== Created leaf node for key: {keys[0]} ===")
                 return True
 
             # merge element names (append only new entries)
@@ -310,6 +310,57 @@ class RealtimeSignalProvider(SignalProvider):
         finally:
             self.index_lock.unlock()
 
+    def update_metadata(self):
+        """
+        Refresh the metadata from the remote realtime logger.
+        New metadata items are added to self.rt_metadata_dict and
+        the corresponding data buffers are created in self.data.
+
+        Returns:
+            dict: New metadata items added, or None if no new items.
+        """
+
+        client = self.vector_collections_client
+        if client is None:
+            print("Refresh metadata: realtime client unavailable.")
+            return
+
+        try:
+            updated_md = client.get_metadata().vectors
+        except Exception as exc:
+            print(f"Error fetching metadata: {exc}")
+            return
+
+        existing_md = self.rt_metadata_dict or {}
+        new_items = {k: v for k, v in updated_md.items() if k not in existing_md}
+
+        if not new_items:
+            return
+
+        existing_md.update(new_items)
+        self.rt_metadata_dict = existing_md
+
+        desc_key = f"{ROBOT_REALTIME_KEY}::description_list"
+        yarp_name_key = f"{ROBOT_REALTIME_KEY}::yarp_robot_name"
+        if desc_key in new_items:
+            self.joints_name = existing_md[desc_key]
+        if yarp_name_key in new_items:
+            names = existing_md.get(yarp_name_key, [])
+            if names:
+                self.robot_name = names[0]
+
+        # Populate metadata into self.data recursively.
+        for key_string, value in self.rt_metadata_dict.items():
+            keys = key_string.split("::")
+            self._populate_realtime_logger_metadata(self.data, keys, value)
+
+        # Remove keys that are not needed for the realtime plotting.
+        if self.root_name in self.data:
+            self.data[self.root_name].pop("description_list", None)
+            self.data[self.root_name].pop("yarp_robot_name", None)
+
+        return new_items
+
     def get_item_from_path_at_index(self, path, index, default_path=None, neighbor=0):
         """
         Get the latest data item from the given path at the latest index.
@@ -351,9 +402,11 @@ class RealtimeSignalProvider(SignalProvider):
                 if vc_input:
 
                     self.index_lock.lock()
+
                     # Retrieve the most recent timestamp from the input.
                     recent_timestamp = vc_input[f"{ROBOT_REALTIME_KEY}::timestamps"][0]
                     self._timestamps.append(recent_timestamp)
+
                     # Keep the global timestamps within the fixed plot window.
                     while self._timestamps and (
                         recent_timestamp - self._timestamps[0]
@@ -371,9 +424,6 @@ class RealtimeSignalProvider(SignalProvider):
                     for key_string, value in vc_input.items():
                         if key_string == f"{ROBOT_REALTIME_KEY}::timestamps":
                             continue
-
-                        if "alpha" in key_string:
-                            print(f"controllerdata alpha gravity value: {value}")
 
                         # Check if any selected signal starts with this path
                         match = any(

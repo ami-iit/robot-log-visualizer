@@ -11,17 +11,14 @@ from time import localtime, strftime
 
 import numpy as np
 import pyqtconsole.highlighter as hl
+from pyqtconsole.console import PythonConsole
+
 # QtPy abstraction
-from qtpy import \
-    QtWebEngineWidgets  # noqa: F401  # Ensure WebEngine is initialised
+from qtpy import QtWebEngineWidgets  # noqa: F401
 from qtpy import QtGui, QtWidgets
 from qtpy.QtCore import QMutex, QMutexLocker, Qt, QUrl, Slot
 from qtpy.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QLineEdit,
                             QToolButton, QTreeWidgetItem, QVBoxLayout)
-
-pyqtSlot = Slot
-# Matplotlib class
-from pyqtconsole.console import PythonConsole
 
 from robot_log_visualizer.robot_visualizer.meshcat_provider import \
     MeshcatProvider
@@ -39,6 +36,8 @@ from robot_log_visualizer.ui.video_item import VideoItem
 from robot_log_visualizer.utils.utils import (ColorPalette,
                                               PeriodicThreadState,
                                               RobotStatePath)
+
+pyqtSlot = Slot
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):

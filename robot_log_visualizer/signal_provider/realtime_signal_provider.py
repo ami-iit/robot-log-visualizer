@@ -413,52 +413,68 @@ class RealtimeSignalProvider(SignalProvider):
         """
         while True:
             start = time.time()
-            if self.state == PeriodicThreadState.running:
-                # Read the latest data from the realtime logger.
-                vc_input = self.vector_collections_client.read_data(True).vectors
+            if self.state == PeriodicThreadState.closed:
+                return
 
-                if vc_input:
+            if self.state == PeriodicThreadState.running:
+                new_samples_read = False
+
+                while True:
+                    try:
+                        packet = self.vector_collections_client.read_data(False)
+                    except Exception as exc:  # noqa: BLE001 - surface runtime issues
+                        print(f"Error reading realtime data: {exc}")
+                        break
+
+                    if packet is None:
+                        break
+
+                    vc_input = getattr(packet, "vectors", None)
+                    if not vc_input:
+                        break
+
+                    timestamps_key = f"{ROBOT_REALTIME_KEY}::timestamps"
+                    if timestamps_key not in vc_input or not vc_input[timestamps_key]:
+                        continue
+
+                    recent_timestamp = vc_input[timestamps_key][0]
 
                     self.index_lock.lock()
+                    try:
+                        self._timestamps.append(recent_timestamp)
 
-                    # Retrieve the most recent timestamp from the input.
-                    recent_timestamp = vc_input[f"{ROBOT_REALTIME_KEY}::timestamps"][0]
-                    self._timestamps.append(recent_timestamp)
+                        while self._timestamps and (
+                            recent_timestamp - self._timestamps[0]
+                            > self.realtime_fixed_plot_window
+                        ):
+                            self._timestamps.popleft()
 
-                    # Keep the global timestamps within the fixed plot window.
-                    while self._timestamps and (
-                        recent_timestamp - self._timestamps[0]
-                        > self.realtime_fixed_plot_window
-                    ):
-                        self._timestamps.popleft()
+                        if self._timestamps:
+                            self.initial_time = self._timestamps[0]
+                            self.end_time = self._timestamps[-1]
 
-                    # Update initial and end times.
-                    if self._timestamps:
-                        self.initial_time = self._timestamps[0]
-                        self.end_time = self._timestamps[-1]
+                        for key_string, value in vc_input.items():
+                            if key_string == timestamps_key:
+                                continue
 
-                    # For signal selected from the user that is in the received data (except timestamps),
-                    # update the appropriate buffer.
-                    for key_string, value in vc_input.items():
-                        if key_string == f"{ROBOT_REALTIME_KEY}::timestamps":
-                            continue
+                            match = any(
+                                sel.startswith(key_string)
+                                for sel in self.buffered_signals
+                            )
+                            if not match:
+                                continue
 
-                        # Check if any selected signal starts with this path
-                        match = any(
-                            sel.startswith(key_string) for sel in self.buffered_signals
-                        )
-                        if not match:
-                            continue
+                            keys = key_string.split("::")
+                            self._update_data_buffer(
+                                self.data, keys, value, recent_timestamp
+                            )
+                    finally:
+                        self.index_lock.unlock()
 
-                        keys = key_string.split("::")
-                        self._update_data_buffer(
-                            self.data, keys, value, recent_timestamp
-                        )
+                    new_samples_read = True
 
-                    self.index_lock.unlock()
-
-                # Signal that new data are available.
-                self.update_index_signal.emit()
+                if new_samples_read:
+                    self.update_index_signal.emit()
 
             # Sleep until the next period.
             sleep_time = self.period - (time.time() - start)

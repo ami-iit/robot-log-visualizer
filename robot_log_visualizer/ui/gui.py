@@ -12,11 +12,10 @@ from time import localtime, strftime
 import numpy as np
 import pyqtconsole.highlighter as hl
 from pyqtconsole.console import PythonConsole
-
 # QtPy abstraction
 from qtpy import QtWebEngineWidgets  # noqa: F401
 from qtpy import QtGui, QtWidgets
-from qtpy.QtCore import QMutex, QMutexLocker, Qt, QUrl, Slot
+from qtpy.QtCore import QMutex, QMutexLocker, Qt, QTimer, QUrl, Slot
 from qtpy.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QLineEdit,
                             QToolButton, QTreeWidgetItem, QVBoxLayout)
 
@@ -247,6 +246,18 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.ui.refreshButton.setEnabled(False)
         except Exception:
             pass
+
+        # Setup for refresh button blinking/color change
+        self.refresh_button_blink_state = False
+        self.refresh_button_timer = QTimer(self)
+        self.refresh_button_timer.timeout.connect(self._toggle_refresh_button_style)
+        self.refresh_button_timer.setInterval(500)  # Blink every 500ms
+
+        # Timer to periodically check for new metadata in realtime mode
+        self.metadata_check_timer = QTimer(self)
+        self.metadata_check_timer.timeout.connect(self._check_for_new_metadata)
+        self.metadata_check_timer.setInterval(2000)  # Check every 2 seconds
+
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
         self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
@@ -642,6 +653,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if self.realtime_connection_enabled:
             self.realtime_connection_enabled = False
 
+        # Stop timers
+        if hasattr(self, "metadata_check_timer"):
+            self.metadata_check_timer.stop()
+        if hasattr(self, "refresh_button_timer"):
+            self.refresh_button_timer.stop()
+
         event.accept()
 
     def __populate_variable_tree_widget(
@@ -889,9 +906,13 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)
 
-        # enable refresh when realtime connected
+        # In realtime mode, the refresh button starts disabled until new metadata is available
         try:
-            self.ui.refreshButton.setEnabled(True)
+            self.ui.refreshButton.setEnabled(False)
+            self.ui.refreshButton.setStyleSheet("")  # Reset to normal style
+            self.refresh_button_blink_state = False
+            # Start checking for new metadata periodically
+            self.metadata_check_timer.start()
         except Exception:
             pass
 
@@ -1193,16 +1214,41 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         path.reverse()
         return path
 
+    def _toggle_refresh_button_style(self):
+        """Toggle the refresh button style to create a blinking effect."""
+        if self.refresh_button_blink_state:
+            # Normal state
+            self.ui.refreshButton.setStyleSheet("")
+        else:
+            # Highlighted state - use a bright color to draw attention
+            self.ui.refreshButton.setStyleSheet(
+                "QPushButton { background-color: #4CAF50; border: 2px solid #45a049; }"
+            )
+        self.refresh_button_blink_state = not self.refresh_button_blink_state
+
+    def _check_for_new_metadata(self):
+        """Periodically check if new metadata is available in realtime mode."""
+        if not isinstance(self.signal_provider, RealtimeSignalProvider):
+            return
+
+        provider = self.signal_provider
+        if provider.check_for_new_metadata():
+            # New metadata is available - enable and start blinking the button
+            self.ui.refreshButton.setEnabled(True)
+            if not self.refresh_button_timer.isActive():
+                self.refresh_button_timer.start()
+            self.logger.write_to_log("New metadata available. Click refresh to update.")
+
     def refreshButton_on_click(self):
         """Fetch fresh realtime metadata, add only new keys, and extend the tree."""
 
-        provider: RealtimeSignalProvider = self.signal_provider
-        if not isinstance(provider, RealtimeSignalProvider):
+        if not isinstance(self.signal_provider, RealtimeSignalProvider):
             self.logger.write_to_log(
                 "Refresh metadata: realtime provider not connected."
             )
             return
 
+        provider = self.signal_provider
         new_items = provider.update_metadata()
         if not new_items:
             self.logger.write_to_log("Refresh metadata: no new metadata keys found.")
@@ -1223,6 +1269,12 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self._update_variable_tree_widget(
                 provider.data[ROBOT_REALTIME_KEY], root_item
             )
+
+        # After refresh, disable the button and stop blinking until new metadata arrives
+        self.ui.refreshButton.setEnabled(False)
+        self.refresh_button_timer.stop()
+        self.ui.refreshButton.setStyleSheet("")  # Reset to normal style
+        self.refresh_button_blink_state = False
 
 
 class Logger:

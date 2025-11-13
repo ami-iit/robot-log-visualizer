@@ -114,9 +114,9 @@ class RealtimeSignalProvider(SignalProvider):
         # Track signals to buffer
         self.buffered_signals = set()
         # Always include joints_state
-        self.buffered_signals.add(f"{ROBOT_REALTIME_KEY}::joints_state::positions")
-
-    # TODO: implement a logic to remove signals that are not needed anymore
+        self.buffered_signals.add(
+            f"{ROBOT_REALTIME_KEY}::joints_state::positions"
+        )  # TODO: implement a logic to remove signals that are not needed anymore
     def add_signals_to_buffer(self, signals: Union[str, Iterable[str]]):
         """Add signals to the buffer set."""
         if isinstance(signals, str):
@@ -309,6 +309,24 @@ class RealtimeSignalProvider(SignalProvider):
             return len(self._timestamps) - 1 if len(self._timestamps) > 0 else 0
         finally:
             self.index_lock.unlock()
+
+    def check_for_new_metadata(self) -> bool:
+        """
+        Check if new metadata is available using the client's streaming data flag.
+        This avoids expensive RPC calls.
+
+        Returns:
+            bool: True if new metadata is available, False otherwise.
+        """
+        client = self.vector_collections_client
+        if client is None:
+            return False
+
+        try:
+            return client.is_new_metadata_available()
+        except Exception as exc:
+            print(f"Error checking for new metadata: {exc}")
+            return False
 
     def update_metadata(self):
         """

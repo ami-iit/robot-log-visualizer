@@ -2,60 +2,41 @@
 # This software may be modified and distributed under the terms of the
 # Released under the terms of the BSD 3-Clause License
 
-# QtPy abstraction
-from qtpy import QtWidgets, QtGui, QtCore
-from qtpy import QtWebEngineWidgets  # noqa: F401  # Ensure WebEngine is initialised
-from qtpy.QtCore import QMutex, QMutexLocker, QUrl, Qt, Slot
-from qtpy.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
-    QFileDialog,
-    QLineEdit,
-    QToolButton,
-    QTreeWidgetItem,
-    QVBoxLayout,
-)
-
-pyqtSlot = Slot
-from robot_log_visualizer.robot_visualizer.meshcat_provider import MeshcatProvider
-from robot_log_visualizer.signal_provider.realtime_signal_provider import (
-    RealtimeSignalProvider,
-    are_deps_installed,
-)
-from robot_log_visualizer.signal_provider.matfile_signal_provider import (
-    MatfileSignalProvider,
-)
-
-from robot_log_visualizer.signal_provider.signal_provider import (
-    ProviderType,
-    SignalProvider,
-)
-from robot_log_visualizer.ui.plot_item import PlotItem
-from robot_log_visualizer.ui.video_item import VideoItem
-from robot_log_visualizer.ui.text_logging import TextLoggingItem
-
-from robot_log_visualizer.utils.utils import (
-    PeriodicThreadState,
-    RobotStatePath,
-    ColorPalette,
-)
-
-import sys
 import os
 import pathlib
 import re
-
-import numpy as np
-
-# QtDesigner generated classes
-from robot_log_visualizer.ui.ui_loader import load_ui
-
+import sys
 # for logging
 from time import localtime, strftime
 
-# Matplotlib class
-from pyqtconsole.console import PythonConsole
+import numpy as np
 import pyqtconsole.highlighter as hl
+from pyqtconsole.console import PythonConsole
+# QtPy abstraction
+from qtpy import QtWebEngineWidgets  # noqa: F401
+from qtpy import QtGui, QtWidgets
+from qtpy.QtCore import QMutex, QMutexLocker, Qt, QTimer, QUrl, Slot
+from qtpy.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QLineEdit,
+                            QToolButton, QTreeWidgetItem, QVBoxLayout)
+
+from robot_log_visualizer.robot_visualizer.meshcat_provider import \
+    MeshcatProvider
+from robot_log_visualizer.signal_provider.matfile_signal_provider import \
+    MatfileSignalProvider
+from robot_log_visualizer.signal_provider.realtime_signal_provider import (
+    ROBOT_REALTIME_KEY, RealtimeSignalProvider, are_deps_installed)
+from robot_log_visualizer.signal_provider.signal_provider import (
+    ProviderType, SignalProvider)
+from robot_log_visualizer.ui.plot_item import PlotItem
+from robot_log_visualizer.ui.text_logging import TextLoggingItem
+# QtDesigner generated classes
+from robot_log_visualizer.ui.ui_loader import load_ui
+from robot_log_visualizer.ui.video_item import VideoItem
+from robot_log_visualizer.utils.utils import (ColorPalette,
+                                              PeriodicThreadState,
+                                              RobotStatePath)
+
+pyqtSlot = Slot
 
 
 class SetRobotModelDialog(QtWidgets.QDialog):
@@ -258,6 +239,25 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
         self.ui.pauseButton.clicked.connect(self.pauseButton_on_click)
         self.ui.startButton.clicked.connect(self.startButton_on_click)
+        self.ui.refreshButton.clicked.connect(self.refreshButton_on_click)
+
+        # by default the refresh button is only relevant for realtime connections
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
+
+        # Setup for refresh button blinking/color change
+        self.refresh_button_blink_state = False
+        self.refresh_button_timer = QTimer(self)
+        self.refresh_button_timer.timeout.connect(self._toggle_refresh_button_style)
+        self.refresh_button_timer.setInterval(500)  # Blink every 500ms
+
+        # Timer to periodically check for new metadata in realtime mode
+        self.metadata_check_timer = QTimer(self)
+        self.metadata_check_timer.timeout.connect(self._check_for_new_metadata)
+        self.metadata_check_timer.setInterval(2000)  # Check every 2 seconds
+
         self.ui.timeSlider.sliderReleased.connect(self.timeSlider_on_release)
         self.ui.timeSlider.sliderPressed.connect(self.timeSlider_on_pressed)
         self.ui.timeSlider.sliderMoved.connect(self.timeSlider_on_sliderMoved)
@@ -461,6 +461,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             path = []
             legend = []
             is_leaf = True
+            self.logger.write_to_log(f"Selected index data: {index.data()}")
             while index.data() is not None:
                 legend.append(index.data())
                 if not is_leaf:
@@ -475,6 +476,10 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
             paths.append(path)
             legends.append(legend)
+
+        # Debug logs
+        self.logger.write_to_log(f"Selected paths: {paths}")
+        self.logger.write_to_log(f"Selected legends: {legends}")
 
         # if there is no selection we do nothing
         if not paths:
@@ -617,6 +622,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if self.signal_provider is not None:
             self.signal_provider.state = PeriodicThreadState.closed
             self.signal_provider.wait()
+        # hide/disable refresh on close
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
             self.signal_provider = None
 
         # Stop the meshcat_provider if exists
@@ -643,9 +653,18 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         if self.realtime_connection_enabled:
             self.realtime_connection_enabled = False
 
+        # Stop timers
+        if hasattr(self, "metadata_check_timer"):
+            self.metadata_check_timer.stop()
+        if hasattr(self, "refresh_button_timer"):
+            self.refresh_button_timer.stop()
+
         event.accept()
 
-    def __populate_variable_tree_widget(self, obj, parent) -> QTreeWidgetItem:
+    def __populate_variable_tree_widget(
+        self, obj: dict, parent: QTreeWidgetItem
+    ) -> QTreeWidgetItem:
+
         if not isinstance(obj, dict):
             return parent
         if "data" in obj.keys() and "timestamps" in obj.keys():
@@ -671,6 +690,49 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item = self.__populate_variable_tree_widget(value, item)
             item.setFlags(item.flags() & ~Qt.ItemIsSelectable)
             parent.addChild(item)
+        return parent
+
+    def _update_variable_tree_widget(
+        self, obj: dict, parent: QTreeWidgetItem
+    ) -> QTreeWidgetItem:
+        """
+        Recursively merge new metadata into the variable tree widget.
+        Only checks for existing items at non-leaf nodes.
+        At leaf nodes, always adds all children.
+        """
+        if not isinstance(obj, dict):
+            return parent
+
+        if "data" in obj.keys() and "timestamps" in obj.keys():
+            temp_array = obj["data"]
+            try:
+                n_cols = temp_array.shape[1]
+            except Exception:
+                n_cols = 1
+
+            # Always add all children at leaf level
+            if "elements_names" in obj.keys():
+                for name in obj["elements_names"]:
+                    item = QTreeWidgetItem([name])
+                    parent.addChild(item)
+            else:
+                for i in range(n_cols):
+                    item = QTreeWidgetItem(["Element " + str(i)])
+                    parent.addChild(item)
+            return parent
+
+        for key, value in obj.items():
+            # Only check for existing child at non-leaf nodes
+            child_item = None
+            for i in range(parent.childCount()):
+                if parent.child(i).text(0) == key:
+                    child_item = parent.child(i)
+                    break
+            if child_item is None:
+                child_item = QTreeWidgetItem([key])
+                child_item.setFlags(child_item.flags() & ~Qt.ItemIsSelectable)
+                parent.addChild(child_item)
+                self._update_variable_tree_widget(value, child_item)
         return parent
 
     def __populate_text_logging_tree_widget(self, obj, parent) -> QTreeWidgetItem:
@@ -742,6 +804,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.ui.timeSlider.setMaximum(self.signal_size)
         self.ui.startButton.setEnabled(True)
         self.ui.timeSlider.setEnabled(True)
+        # loading a MAT file: refresh is not relevant
+        try:
+            self.ui.refreshButton.setEnabled(False)
+        except Exception:
+            pass
 
         # get all the video associated to the datase
         filename_without_path = pathlib.Path(file_name).name
@@ -790,7 +857,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
 
     def connect_realtime_logger(self):
         self.signal_provider = RealtimeSignalProvider(
-            self.signal_provider_period, "robot_realtime"
+            self.signal_provider_period, ROBOT_REALTIME_KEY
         )
         self.realtime_connection_enabled = True
 
@@ -799,6 +866,11 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             self.logger.write_to_log("Could not connect to the real-time logger.")
             self.realtime_connection_enabled = False
             self.signal_provider = None
+            # failed to connect: ensure refresh is disabled
+            try:
+                self.ui.refreshButton.setEnabled(False)
+            except Exception:
+                pass
             return
         # only display one root in the gui
         root = list(self.signal_provider.data.keys())[0]
@@ -833,6 +905,16 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
         self.meshcat_provider.start()
         for plot in self.plot_items:
             plot.set_signal_provider(self.signal_provider)
+
+        # In realtime mode, the refresh button starts disabled until new metadata is available
+        try:
+            self.ui.refreshButton.setEnabled(False)
+            self.ui.refreshButton.setStyleSheet("")  # Reset to normal style
+            self.refresh_button_blink_state = False
+            # Start checking for new metadata periodically
+            self.metadata_check_timer.start()
+        except Exception:
+            pass
 
     def open_about(self):
         self.about.show()
@@ -1081,7 +1163,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 and self.signal_provider.provider_type == ProviderType.REALTIME
             ):
                 # Convert item_path to signal name string
-                signal_name = "robot_realtime::" + "::".join(item_path)
+                signal_name = f"{ROBOT_REALTIME_KEY}::" + "::".join(item_path)
                 self.signal_provider.add_signals_to_buffer([signal_name])
 
         if use_as_base_orientation_str in action.text():
@@ -1096,7 +1178,7 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
                 self.signal_provider
                 and self.signal_provider.provider_type == ProviderType.REALTIME
             ):
-                signal_name = "robot_realtime::" + "::".join(item_path)
+                signal_name = f"{ROBOT_REALTIME_KEY}::" + "::".join(item_path)
                 self.signal_provider.add_signals_to_buffer([signal_name])
 
         if action.text() == dont_use_as_base_position_str:
@@ -1131,6 +1213,68 @@ class RobotViewerMainWindow(QtWidgets.QMainWindow):
             item = item.parent()
         path.reverse()
         return path
+
+    def _toggle_refresh_button_style(self):
+        """Toggle the refresh button style to create a blinking effect."""
+        if self.refresh_button_blink_state:
+            # Normal state
+            self.ui.refreshButton.setStyleSheet("")
+        else:
+            # Highlighted state - use a bright color to draw attention
+            self.ui.refreshButton.setStyleSheet(
+                "QPushButton { background-color: #4CAF50; border: 2px solid #45a049; }"
+            )
+        self.refresh_button_blink_state = not self.refresh_button_blink_state
+
+    def _check_for_new_metadata(self):
+        """Periodically check if new metadata is available in realtime mode."""
+        if not isinstance(self.signal_provider, RealtimeSignalProvider):
+            return
+
+        provider = self.signal_provider
+        if provider.check_for_new_metadata():
+            # New metadata is available - enable and start blinking the button
+            self.ui.refreshButton.setEnabled(True)
+            if not self.refresh_button_timer.isActive():
+                self.refresh_button_timer.start()
+            self.logger.write_to_log("New metadata available. Click refresh to update.")
+
+    def refreshButton_on_click(self):
+        """Fetch fresh realtime metadata, add only new keys, and extend the tree."""
+
+        if not isinstance(self.signal_provider, RealtimeSignalProvider):
+            self.logger.write_to_log(
+                "Refresh metadata: realtime provider not connected."
+            )
+            return
+
+        provider = self.signal_provider
+        new_items = provider.update_metadata()
+        if not new_items:
+            self.logger.write_to_log("Refresh metadata: no new metadata keys found.")
+            return
+
+        self.logger.write_to_log(f"New metadata keys found: {list(new_items.keys())}")
+
+        # Treat the top-level item as the robot_realtime node
+        root_item = self.ui.variableTreeWidget.topLevelItem(0)
+        if root_item is None or root_item.text(0) != ROBOT_REALTIME_KEY:
+            self.logger.write_to_log(
+                f"Refresh metadata: '{ROBOT_REALTIME_KEY}' node not found, cannot insert."
+            )
+            return
+
+        # Merge the children of the new subtree into the existing robot_realtime node
+        with QMutexLocker(provider.index_lock):
+            self._update_variable_tree_widget(
+                provider.data[ROBOT_REALTIME_KEY], root_item
+            )
+
+        # After refresh, disable the button and stop blinking until new metadata arrives
+        self.ui.refreshButton.setEnabled(False)
+        self.refresh_button_timer.stop()
+        self.ui.refreshButton.setStyleSheet("")  # Reset to normal style
+        self.refresh_button_blink_state = False
 
 
 class Logger:

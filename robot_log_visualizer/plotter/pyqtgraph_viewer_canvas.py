@@ -202,10 +202,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             )
 
             # For real-time mode, disable curve clickability to avoid interfering with live updates
-            if (
-                self._signal_provider
-                and self._signal_provider.provider_type == ProviderType.REALTIME
-            ):
+            if self._signal_provider.provider_type == ProviderType.REALTIME:
                 self._curves[key].setCurveClickable(False)
                 self._curves[key].setEnabled(False)
 
@@ -249,10 +246,7 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             return  # ignore other buttons
 
         # Disable point selection / labels in realtime mode
-        if (
-            self._signal_provider
-            and self._signal_provider.provider_type == ProviderType.REALTIME
-        ):
+        if self._signal_provider.provider_type == ProviderType.REALTIME:
             return
 
         # Scene → data coordinates

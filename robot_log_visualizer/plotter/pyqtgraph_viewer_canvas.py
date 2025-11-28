@@ -10,8 +10,8 @@ import numpy as np
 import pyqtgraph as pg  # type: ignore
 from qtpy import QtCore, QtWidgets  # type: ignore
 
-from robot_log_visualizer.utils.utils import ColorPalette
 from robot_log_visualizer.signal_provider.signal_provider import ProviderType
+from robot_log_visualizer.utils.utils import ColorPalette
 
 # ------------------------------------------------------------------------
 # Type aliases
@@ -201,6 +201,15 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
                 symbol=None,
             )
 
+            # For real-time mode, disable curve clickability to avoid interfering with live updates
+            if (
+                self._signal_provider
+                and self._signal_provider.provider_type == ProviderType.REALTIME
+            ):
+                self._curves[key].setCurveClickable(False)
+                self._curves[key].setEnabled(False)
+                print("Disabled curve interactivity for real-time mode")
+
     def _remove_obsolete_curves(self, paths: Sequence[Path]) -> None:
         """Delete curves that disappeared from *paths*."""
         valid = {"/".join(p) for p in paths}
@@ -239,6 +248,13 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
         """Handle a left‑click: select or unselect the nearest data point."""
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return  # ignore other buttons
+
+        # Disable point selection / labels in realtime mode
+        if (
+            self._signal_provider
+            and self._signal_provider.provider_type == ProviderType.REALTIME
+        ):
+            return
 
         # Scene → data coordinates
         scene_pos = event.scenePos()

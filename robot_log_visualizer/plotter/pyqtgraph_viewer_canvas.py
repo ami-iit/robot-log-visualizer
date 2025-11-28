@@ -208,7 +208,6 @@ class PyQtGraphViewerCanvas(QtWidgets.QWidget):
             ):
                 self._curves[key].setCurveClickable(False)
                 self._curves[key].setEnabled(False)
-                print("Disabled curve interactivity for real-time mode")
 
     def _remove_obsolete_curves(self, paths: Sequence[Path]) -> None:
         """Delete curves that disappeared from *paths*."""

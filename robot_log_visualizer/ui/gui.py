@@ -1346,7 +1346,7 @@ if __name__ == "__main__":
     # construct a QApplication
     app = QtWidgets.QApplication(sys.argv)
 
-    # instantiate the main window and add the Matplotlib canvas
+    # instantiate the main window
     gui = RobotViewerMainWindow()
 
     # show the main window
